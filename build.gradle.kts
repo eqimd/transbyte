@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.transbyte"
-version = "1.0-SNAPSHOT"
+version = "0.0.1a"
 
 repositories {
     mavenCentral()
@@ -23,7 +23,7 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "1.8"
+    kotlinOptions.jvmTarget = "1.11"
 }
 
 application {
