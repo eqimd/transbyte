@@ -1,0 +1,4 @@
+package extension
+
+object Extension {
+}

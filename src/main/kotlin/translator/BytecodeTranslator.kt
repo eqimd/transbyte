@@ -1,0 +1,4 @@
+package translator
+
+class BytecodeTranslator {
+}
