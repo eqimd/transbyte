@@ -1,4 +1,3 @@
 package exception
 
-interface TransbyteException : Throwable {
-}
+class MethodParseException(message: String) : Exception(message)

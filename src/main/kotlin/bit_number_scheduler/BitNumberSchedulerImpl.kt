@@ -1,9 +1,9 @@
 package bit_number_scheduler
 
-class BitNumberScheduler {
-    private var currentPosition: Long = 0L
+class BitNumberSchedulerImpl(private var currentPosition: Long) : BitNumberScheduler {
+    constructor() : this(0)
 
-    fun shiftPosition(size: Int): Long {
+    override fun shift(size: Int): Long {
         val curPosition = currentPosition
         currentPosition += size
 

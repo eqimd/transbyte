@@ -1,4 +1,6 @@
 package boolean_formula
 
-class Empty {
+class Empty : BooleanFormula {
+    override fun toString(): String =
+        ""
 }

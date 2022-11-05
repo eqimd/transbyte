@@ -1,4 +1,3 @@
 package exception
 
-class TypeSizeException {
-}
+class TypeSizeException(message: String) : Exception(message)

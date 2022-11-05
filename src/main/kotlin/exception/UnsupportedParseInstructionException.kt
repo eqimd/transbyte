@@ -1,3 +1,3 @@
 package exception
 
-class UnsupportedParseInstruction(message: String) : Exception(message)
+class UnsupportedParseInstructionException(message: String) : Exception(message)
