@@ -1,4 +1,4 @@
-name: ktlint CI
+name: ktlint
 
 on:
   push:
