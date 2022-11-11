@@ -1,7 +1,7 @@
 package bit_number_scheduler
 
-import extension.BitsArray
+import constants.BitsArray
 
-interface BitNumberScheduler {
+interface BitsScheduler {
     fun getAndShift(size: Int): BitsArray
 }

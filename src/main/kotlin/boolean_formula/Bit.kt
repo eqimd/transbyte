@@ -1,6 +1,6 @@
 package boolean_formula
 
-class Bit(val bitNumber: Long, val isNegated: Boolean) : BooleanFormula {
+class Bit(val bitNumber: Long, val isNegated: Boolean = false) : BooleanFormula {
     override fun equals(other: Any?): Boolean =
         (other is Bit && other.bitNumber == bitNumber && other.isNegated == isNegated)
 

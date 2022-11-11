@@ -1,4 +1,0 @@
-package extension
-
-class alias {
-}
