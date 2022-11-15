@@ -8,6 +8,7 @@ import boolean_formula.Equality
 import boolean_formula.Maj
 import boolean_formula.Xor
 import constants.BitsArray
+import constants.BooleanSystem
 import constants.Constants.INT_BITS
 import exception.MethodParseException
 import exception.UnsupportedParseInstructionException
@@ -31,15 +32,16 @@ class MethodSat(
 
     val name = methodGen.name
 
-    fun parse(argsBitFields: List<BitsArray>): List<BooleanFormula> {
+    fun parse(argsBitFields: List<BitsArray>): BooleanSystem {
         checkParseErrors(argsBitFields)
 
         val locals = parseArgsToLocals(argsBitFields)
         val stack = ArrayDeque<BitsArray>()
 
-        val system = emptyList<BooleanFormula>().toMutableList()
+        val system = emptyList<List<BooleanFormula>>().toMutableList()
 
         for (instrHandle in methodGen.instructionList) {
+            val parseSystem: MutableList<BooleanFormula>
             when (val instruction = instrHandle.instruction) {
                 is ILOAD -> {
                     stack.addLast(locals[instruction.index])
@@ -47,14 +49,20 @@ class MethodSat(
                 is IADD -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
-                    val c = parseIADD(a, b, system)
+                    val res = parseIADD(a, b)
+                    parseSystem = res.second
+                    val c = res.first
                     stack.addLast(c)
+                    system.add(parseSystem)
                 }
                 is IMUL -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
-                    val c = parseIMUL(a, b, system)
+                    val res = parseIMUL(a, b)
+                    parseSystem = res.second
+                    val c = res.first
                     stack.addLast(c)
+                    system.add(parseSystem)
                 }
                 is IRETURN -> {
                 }
@@ -94,11 +102,13 @@ class MethodSat(
         return locals
     }
 
-    private fun parseIADD(a: BitsArray, b: BitsArray, system: MutableList<BooleanFormula>): BitsArray {
+    // TODO add varSize to parse LADD in the same function
+    private fun parseIADD(a: BitsArray, b: BitsArray): Pair<BitsArray, MutableList<BooleanFormula>> {
         // TODO should it consider overflowing?
 
-        // c = a + b
+        val system = emptyList<BooleanFormula>().toMutableList()
 
+        // c = a + b
         val c = bitScheduler.getAndShift(INT_BITS + 1)
 
         val c0 = Equality(
@@ -153,15 +163,11 @@ class MethodSat(
         )
         system.add(cLast)
 
-        return c
+        return Pair(c, system)
     }
 
-    private fun parseIMUL(
-        a: BitsArray,
-        b: BitsArray,
-        system: MutableList<BooleanFormula>,
-        varSize: Int = INT_BITS
-    ): BitsArray {
+    private fun parseIMUL(a: BitsArray, b: BitsArray, varSize: Int = INT_BITS): Pair<BitsArray, MutableList<BooleanFormula>> {
+        val system = emptyList<BooleanFormula>().toMutableList()
 
         // c = a*b
         val c = bitScheduler.getAndShift(2 * varSize)
@@ -258,6 +264,6 @@ class MethodSat(
             Equality(c[2 * varSize - 1], carryMult[varSize - 1][varSize - 2])
         )
 
-        return c
+        return Pair(c, system)
     }
 }

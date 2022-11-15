@@ -9,8 +9,8 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
     private val bitScheduler = BitsSchedulerImpl()
 
     init {
-        for (cls in classes.iterator()) {
-            classesMap[cls.className] = cls
+        for (clazz in classes.iterator()) {
+            classesMap[clazz.className] = clazz
         }
     }
 

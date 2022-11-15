@@ -1,6 +1,6 @@
 package boolean_formula
 
-class Equality(val lhs: BooleanFormula, val rhs: BooleanFormula) : BooleanFormula {
+class Equality(val lhs: Bit, val rhs: BooleanFormula) : BooleanFormula {
     override fun equals(other: Any?): Boolean =
         (other is Equality && ((other.lhs == lhs && other.rhs == rhs) || (other.lhs == rhs && other.rhs == lhs)))
 
