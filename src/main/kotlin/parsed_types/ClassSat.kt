@@ -67,6 +67,6 @@ class ClassSat(
     fun getMethodByDescription(description: String): MethodSat? =
         methods[description]
 
-    fun getMethodByMethodrefIndex(index: Int) : MethodSat? =
+    fun getMethodByMethodrefIndex(index: Int): MethodSat? =
         methods[methodRefs[index]?.methodDescription]
 }

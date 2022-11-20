@@ -2,11 +2,11 @@ package parsed_types
 
 import bit_number_scheduler.BitsScheduler
 import boolean_formula.BooleanFormula
-import boolean_formula.basis.Conjunction
-import boolean_formula.basis.Disjunction
 import boolean_formula.additional.Equality
 import boolean_formula.additional.Maj
 import boolean_formula.additional.Xor
+import boolean_formula.basis.Conjunction
+import boolean_formula.basis.Disjunction
 import constants.BitsArray
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
