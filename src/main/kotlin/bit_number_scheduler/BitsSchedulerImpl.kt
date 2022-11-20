@@ -1,6 +1,6 @@
 package bit_number_scheduler
 
-import boolean_formula.basis.BitVariable
+import boolean_logic.basis.BitVariable
 import constants.BitsArray
 
 class BitsSchedulerImpl(private var currentPosition: Long) : BitsScheduler {

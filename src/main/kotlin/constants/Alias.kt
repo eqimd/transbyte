@@ -1,7 +1,7 @@
 package constants
 
-import boolean_formula.BooleanFormula
-import boolean_formula.basis.BitVariable
+import boolean_logic.BooleanFormula
+import boolean_logic.basis.BitVariable
 
 typealias BitsArray = Array<BitVariable>
 typealias ConstantPoolIndex = Int

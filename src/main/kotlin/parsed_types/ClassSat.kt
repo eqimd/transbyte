@@ -60,7 +60,7 @@ class ClassSat(
         }
 
         for (method in clazz.methods) {
-            _methods[method.fullDescription] = MethodSat(clazz, method, cpGen, bitScheduler)
+            _methods[method.fullDescription] = MethodSat(clazz, this, method, cpGen, bitScheduler)
         }
     }
 

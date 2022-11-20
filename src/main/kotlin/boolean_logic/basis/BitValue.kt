@@ -1,6 +1,6 @@
-package boolean_formula.basis
+package boolean_logic.basis
 
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 
 enum class BitValue(val value: Boolean) : BooleanFormula {
     TRUE(true),

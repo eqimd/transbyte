@@ -1,15 +1,16 @@
 package parsed_types
 
 import bit_number_scheduler.BitsScheduler
-import boolean_formula.BooleanFormula
-import boolean_formula.additional.Equality
-import boolean_formula.additional.Maj
-import boolean_formula.additional.Xor
-import boolean_formula.basis.Conjunction
-import boolean_formula.basis.Disjunction
+import boolean_logic.BooleanFormula
+import boolean_logic.additional.Equality
+import boolean_logic.additional.Maj
+import boolean_logic.additional.Xor
+import boolean_logic.basis.Conjunction
+import boolean_logic.basis.Disjunction
 import constants.BitsArray
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
+import constants.Constants.LONG_BITS
 import exception.MethodParseException
 import exception.UnsupportedParseInstructionException
 import extension.bitsSize
@@ -19,13 +20,18 @@ import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.IADD
 import org.apache.bcel.generic.ILOAD
 import org.apache.bcel.generic.IMUL
+import org.apache.bcel.generic.INVOKESTATIC
 import org.apache.bcel.generic.IRETURN
+import org.apache.bcel.generic.LADD
+import org.apache.bcel.generic.LMUL
 import org.apache.bcel.generic.MethodGen
+import org.apache.bcel.generic.RETURN
 
 class MethodSat(
     private val clazz: JavaClass,
+    private val classSat: ClassSat,
     private val method: Method,
-    private val cpGen: ConstantPoolGen,
+    cpGen: ConstantPoolGen,
     private val bitScheduler: BitsScheduler,
 ) {
     private val methodGen = MethodGen(method, clazz.className, cpGen)
@@ -36,30 +42,44 @@ class MethodSat(
         checkParseErrors(argsBitFields)
 
         val locals = parseArgsToLocals(argsBitFields)
-        val stack = ArrayDeque<BitsArray>()
+
+        // Stack for primitive variables
+        val stackVariables = ArrayDeque<BitsArray>()
+
+        // Stack for references
+        val stackReferences = ArrayDeque<ClassSat>()
 
         val system = emptyList<List<BooleanFormula>>().toMutableList()
 
         for (instrHandle in methodGen.instructionList) {
             when (val instruction = instrHandle.instruction) {
                 is ILOAD -> {
-                    stack.addLast(locals[instruction.index])
+                    stackVariables.addLast(locals[instruction.index])
                 }
-                is IADD -> {
-                    val a = stack.removeLast()
-                    val b = stack.removeLast()
-                    val (c, parseSystem) = parseIADD(a, b)
-                    stack.addLast(c)
+                is IADD, is LADD -> {
+                    val a = stackVariables.removeLast()
+                    val b = stackVariables.removeLast()
+                    val varSize = if (instruction is IADD) INT_BITS else LONG_BITS
+                    val (c, parseSystem) = parseIADD(a, b, varSize)
+                    stackVariables.addLast(c)
                     system.add(parseSystem)
                 }
-                is IMUL -> {
-                    val a = stack.removeLast()
-                    val b = stack.removeLast()
-                    val (c, parseSystem) = parseIMUL(a, b)
-                    stack.addLast(c)
+                is IMUL, is LMUL -> {
+                    val a = stackVariables.removeLast()
+                    val b = stackVariables.removeLast()
+                    val varSize = if (instruction is IMUL) INT_BITS else LONG_BITS
+                    val (c, parseSystem) = parseIMUL(a, b, varSize)
+                    stackVariables.addLast(c)
                     system.add(parseSystem)
+                }
+                is INVOKESTATIC -> {
+                    // TODO parse() method should return reference or bit array`
+                    val invokedMethod = classSat.getMethodByMethodrefIndex(instruction.index)!!
+                    invokedMethod.parse(emptyList())
                 }
                 is IRETURN -> {
+                }
+                is RETURN -> {
                 }
                 else -> {
                     throw UnsupportedParseInstructionException("Can't parse $instruction: instruction is not supported")
@@ -97,14 +117,13 @@ class MethodSat(
         return locals
     }
 
-    // TODO add varSize to parse LADD in the same function
-    private fun parseIADD(a: BitsArray, b: BitsArray): Pair<BitsArray, MutableList<BooleanFormula>> {
+    private fun parseIADD(a: BitsArray, b: BitsArray, varSize: Int = INT_BITS): Pair<BitsArray, MutableList<BooleanFormula>> {
         // TODO should it consider overflowing?
 
         val system = emptyList<BooleanFormula>().toMutableList()
 
         // c = a + b
-        val c = bitScheduler.getAndShift(INT_BITS + 1)
+        val c = bitScheduler.getAndShift(varSize + 1)
 
         val c0 = Equality(
             c[0],
@@ -115,7 +134,7 @@ class MethodSat(
         )
         system.add(c0)
 
-        val pArr = bitScheduler.getAndShift(INT_BITS)
+        val pArr = bitScheduler.getAndShift(varSize)
         var pPrev = pArr[0]
         val p0 = Equality(
             pPrev,
@@ -126,7 +145,7 @@ class MethodSat(
         )
         system.add(p0)
 
-        for (i in 1 until INT_BITS) {
+        for (i in 1 until varSize) {
             val maj = Maj(
                 a[i],
                 b[i],

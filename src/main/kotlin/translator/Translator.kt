@@ -1,6 +1,6 @@
 package translator
 
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 
 interface Translator {
     fun translate(): BooleanFormula

@@ -1,7 +1,7 @@
 package translator
 
 import bit_number_scheduler.BitsSchedulerImpl
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 import org.apache.bcel.classfile.JavaClass
 
 class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {

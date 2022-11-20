@@ -1,7 +1,7 @@
-package boolean_formula.additional
+package boolean_logic.additional
 
-import boolean_formula.BooleanFormula
-import boolean_formula.basis.BitVariable
+import boolean_logic.BooleanFormula
+import boolean_logic.basis.BitVariable
 
 class Equality(val lhs: BitVariable, val rhs: BooleanFormula) : BooleanFormula {
     override fun equals(other: Any?): Boolean =

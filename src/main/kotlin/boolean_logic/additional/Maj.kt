@@ -1,6 +1,6 @@
-package boolean_formula.additional
+package boolean_logic.additional
 
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 
 class Maj(val x: BooleanFormula, val y: BooleanFormula, val z: BooleanFormula) : BooleanFormula {
     override fun toString(): String =

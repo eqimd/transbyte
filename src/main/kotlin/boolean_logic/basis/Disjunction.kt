@@ -1,6 +1,6 @@
-package boolean_formula.basis
+package boolean_logic.basis
 
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 
 class Disjunction(val lhs: BooleanFormula, val rhs: BooleanFormula) : BooleanFormula {
     override fun equals(other: Any?): Boolean =

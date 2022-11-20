@@ -1,6 +1,6 @@
-package boolean_formula.additional
+package boolean_logic.additional
 
-import boolean_formula.BooleanFormula
+import boolean_logic.BooleanFormula
 
 class Xor(val lhs: BooleanFormula, val rhs: BooleanFormula) : BooleanFormula {
     override fun equals(other: Any?): Boolean =
