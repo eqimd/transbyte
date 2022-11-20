@@ -1,12 +1,12 @@
-package parsed_sat
+package parsed_types
 
 import bit_number_scheduler.BitsScheduler
 import boolean_formula.BooleanFormula
-import boolean_formula.Conjunction
-import boolean_formula.Disjunction
-import boolean_formula.Equality
-import boolean_formula.Maj
-import boolean_formula.Xor
+import boolean_formula.basis.Conjunction
+import boolean_formula.basis.Disjunction
+import boolean_formula.additional.Equality
+import boolean_formula.additional.Maj
+import boolean_formula.additional.Xor
 import constants.BitsArray
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
@@ -30,7 +30,7 @@ class MethodSat(
 ) {
     private val methodGen = MethodGen(method, clazz.className, cpGen)
 
-    val name = methodGen.name
+    val name: String = methodGen.name
 
     fun parse(argsBitFields: List<BitsArray>): BooleanSystem {
         checkParseErrors(argsBitFields)
@@ -41,7 +41,6 @@ class MethodSat(
         val system = emptyList<List<BooleanFormula>>().toMutableList()
 
         for (instrHandle in methodGen.instructionList) {
-            val parseSystem: MutableList<BooleanFormula>
             when (val instruction = instrHandle.instruction) {
                 is ILOAD -> {
                     stack.addLast(locals[instruction.index])
@@ -49,18 +48,14 @@ class MethodSat(
                 is IADD -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
-                    val res = parseIADD(a, b)
-                    parseSystem = res.second
-                    val c = res.first
+                    val (c, parseSystem) = parseIADD(a, b)
                     stack.addLast(c)
                     system.add(parseSystem)
                 }
                 is IMUL -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
-                    val res = parseIMUL(a, b)
-                    parseSystem = res.second
-                    val c = res.first
+                    val (c, parseSystem) = parseIMUL(a, b)
                     stack.addLast(c)
                     system.add(parseSystem)
                 }

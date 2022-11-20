@@ -1,6 +1,6 @@
 package bit_number_scheduler
 
-import boolean_formula.Bit
+import boolean_formula.basis.BitVariable
 import constants.BitsArray
 
 class BitsSchedulerImpl(private var currentPosition: Long) : BitsScheduler {
@@ -10,6 +10,6 @@ class BitsSchedulerImpl(private var currentPosition: Long) : BitsScheduler {
         val curPosition = currentPosition
         currentPosition += size
 
-        return Array(size) { Bit(curPosition + it) }
+        return Array(size) { BitVariable(curPosition + it) }
     }
 }

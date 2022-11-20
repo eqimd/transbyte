@@ -1,8 +1,10 @@
-package boolean_formula
+package boolean_formula.basis
 
-class Bit(val bitNumber: Long, val isNegated: Boolean = false) : BooleanFormula {
+import boolean_formula.BooleanFormula
+
+class BitVariable(val bitNumber: Long, val isNegated: Boolean = false) : BooleanFormula {
     override fun equals(other: Any?): Boolean =
-        (other is Bit && other.bitNumber == bitNumber && other.isNegated == isNegated)
+        (other is BitVariable && other.bitNumber == bitNumber && other.isNegated == isNegated)
 
     // Auto generated
     override fun hashCode(): Int {
