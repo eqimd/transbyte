@@ -4,7 +4,6 @@ plugins {
     kotlin("jvm") version "1.7.20"
     application
     id("org.jlleitschuh.gradle.ktlint") version "11.0.0"
-    id("org.jetbrains.intellij") version "1.9.0"
 }
 
 group = "org.transbyte"
@@ -29,8 +28,4 @@ tasks.withType<KotlinCompile> {
 
 application {
     mainClass.set("MainKt")
-}
-
-intellij {
-    version.set("2022.2.3")
 }
