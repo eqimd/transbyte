@@ -7,15 +7,18 @@ import boolean_logic.additional.Maj
 import boolean_logic.additional.Xor
 import boolean_logic.basis.Conjunction
 import boolean_logic.basis.Disjunction
-import constants.BitsArray
+import boolean_logic.data.BitsArrayWithNumber
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
 import constants.Constants.LONG_BITS
 import exception.MethodParseException
 import exception.UnsupportedParseInstructionException
 import extension.bitsSize
+import extension.plus
+import extension.times
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.classfile.Method
+import org.apache.bcel.generic.BIPUSH
 import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.IADD
 import org.apache.bcel.generic.ILOAD
@@ -38,13 +41,13 @@ class MethodSat(
 
     val name: String = methodGen.name
 
-    fun parse(argsBitFields: List<BitsArray>): BooleanSystem {
+    fun parse(argsBitFields: List<BitsArrayWithNumber>): MethodParseReturnValue {
         checkParseErrors(argsBitFields)
 
         val locals = parseArgsToLocals(argsBitFields)
 
         // Stack for primitive variables
-        val stackVariables = ArrayDeque<BitsArray>()
+        val stackVariables = ArrayDeque<BitsArrayWithNumber>()
 
         // Stack for references
         val stackReferences = ArrayDeque<ClassSat>()
@@ -56,30 +59,56 @@ class MethodSat(
                 is ILOAD -> {
                     stackVariables.addLast(locals[instruction.index])
                 }
+                is BIPUSH -> {
+                    val value = instruction.value
+                    val bitsArray = bitScheduler.getAndShift(INT_BITS)
+
+                    stackVariables.addLast(
+                        BitsArrayWithNumber(bitsArray, value)
+                    )
+                }
                 is IADD, is LADD -> {
                     val a = stackVariables.removeLast()
                     val b = stackVariables.removeLast()
                     val varSize = if (instruction is IADD) INT_BITS else LONG_BITS
-                    val (c, parseSystem) = parseIADD(a, b, varSize)
+
+                    val c: BitsArrayWithNumber
+                    if (a.constant != null && b.constant != null) {
+                        val constC = a.constant + b.constant
+                        c = BitsArrayWithNumber(bitScheduler.getAndShift(varSize), constC)
+                    } else {
+                        val (parsedVar, parseSystem) = parseIADD(a, b, varSize)
+                        c = parsedVar
+                        system.add(parseSystem)
+                    }
                     stackVariables.addLast(c)
-                    system.add(parseSystem)
                 }
                 is IMUL, is LMUL -> {
                     val a = stackVariables.removeLast()
                     val b = stackVariables.removeLast()
                     val varSize = if (instruction is IMUL) INT_BITS else LONG_BITS
-                    val (c, parseSystem) = parseIMUL(a, b, varSize)
+                    val c: BitsArrayWithNumber
+                    if (a.constant != null && b.constant != null) {
+                        val constC = a.constant * b.constant
+                        c = BitsArrayWithNumber(bitScheduler.getAndShift(varSize), constC)
+                    } else {
+                        val (parsedVar, parseSystem) = parseIMUL(a, b, varSize)
+                        c = parsedVar
+                        system.add(parseSystem)
+                    }
                     stackVariables.addLast(c)
-                    system.add(parseSystem)
                 }
                 is INVOKESTATIC -> {
-                    // TODO parse() method should return reference or bit array`
+                    // TODO should get parsing this instruction done
+
                     val invokedMethod = classSat.getMethodByMethodrefIndex(instruction.index)!!
                     invokedMethod.parse(emptyList())
                 }
                 is IRETURN -> {
+                    return MethodParseReturnValue(system, stackVariables.removeLast())
                 }
                 is RETURN -> {
+                    return MethodParseReturnValue(system)
                 }
                 else -> {
                     throw UnsupportedParseInstructionException("Can't parse $instruction: instruction is not supported")
@@ -87,10 +116,10 @@ class MethodSat(
             }
         }
 
-        return system
+        return MethodParseReturnValue(system)
     }
 
-    private fun checkParseErrors(argsBitFields: List<BitsArray>) {
+    private fun checkParseErrors(argsBitFields: List<BitsArrayWithNumber>) {
         if (argsBitFields.size != methodGen.argumentNames.size) {
             throw MethodParseException(
                 "Number of arguments, given to .parse(...), is not same that is for" +
@@ -98,9 +127,9 @@ class MethodSat(
             )
         }
         for ((index, pair) in (argsBitFields zip methodGen.argumentTypes).withIndex()) {
-            if (pair.first.size != pair.second.bitsSize) {
+            if (pair.first.bitsArray.size != pair.second.bitsSize) {
                 throw MethodParseException(
-                    "Size ${pair.first.size} of argument with index $index" +
+                    "Size ${pair.first.bitsArray.size} of argument with index $index" +
                         "is not equal to ${pair.second.bitsSize}," +
                         "which is size of type ${pair.second}"
                 )
@@ -108,8 +137,8 @@ class MethodSat(
         }
     }
 
-    private fun parseArgsToLocals(argsBitFields: List<BitsArray>): Array<BitsArray> {
-        val locals = Array<BitsArray>(methodGen.maxLocals) { emptyArray() }
+    private fun parseArgsToLocals(argsBitFields: List<BitsArrayWithNumber>): Array<BitsArrayWithNumber> {
+        val locals = Array(methodGen.maxLocals) { BitsArrayWithNumber(emptyArray()) }
         for ((index, elem) in argsBitFields.withIndex()) {
             locals[index] = elem
         }
@@ -117,7 +146,7 @@ class MethodSat(
         return locals
     }
 
-    private fun parseIADD(a: BitsArray, b: BitsArray, varSize: Int = INT_BITS): Pair<BitsArray, MutableList<BooleanFormula>> {
+    private fun parseIADD(a: BitsArrayWithNumber, b: BitsArrayWithNumber, varSize: Int = INT_BITS): Pair<BitsArrayWithNumber, MutableList<BooleanFormula>> {
         // TODO should it consider overflowing?
 
         val system = emptyList<BooleanFormula>().toMutableList()
@@ -128,8 +157,8 @@ class MethodSat(
         val c0 = Equality(
             c[0],
             Xor(
-                a[0],
-                b[0]
+                a.bitsArray[0],
+                b.bitsArray[0]
             )
         )
         system.add(c0)
@@ -139,22 +168,22 @@ class MethodSat(
         val p0 = Equality(
             pPrev,
             Conjunction(
-                a[0],
-                b[0]
+                a.bitsArray[0],
+                b.bitsArray[0]
             )
         )
         system.add(p0)
 
         for (i in 1 until varSize) {
             val maj = Maj(
-                a[i],
-                b[i],
+                a.bitsArray[i],
+                b.bitsArray[i],
                 pPrev
             )
             val xor = Xor(
                 Xor(
-                    a[i],
-                    b[i]
+                    a.bitsArray[i],
+                    b.bitsArray[i]
                 ),
                 pPrev
             )
@@ -177,10 +206,13 @@ class MethodSat(
         )
         system.add(cLast)
 
-        return Pair(c, system)
+        return Pair(
+            BitsArrayWithNumber(c),
+            system
+        )
     }
 
-    private fun parseIMUL(a: BitsArray, b: BitsArray, varSize: Int = INT_BITS): Pair<BitsArray, MutableList<BooleanFormula>> {
+    private fun parseIMUL(a: BitsArrayWithNumber, b: BitsArrayWithNumber, varSize: Int = INT_BITS): Pair<BitsArrayWithNumber, MutableList<BooleanFormula>> {
         val system = emptyList<BooleanFormula>().toMutableList()
 
         // c = a*b
@@ -206,7 +238,7 @@ class MethodSat(
                 system.add(
                     Equality(
                         tempMult[i][j],
-                        Conjunction(a[i], b[j])
+                        Conjunction(a.bitsArray[i], b.bitsArray[j])
                     )
                 )
             }
@@ -278,6 +310,11 @@ class MethodSat(
             Equality(c[2 * varSize - 1], carryMult[varSize - 1][varSize - 2])
         )
 
-        return Pair(c, system)
+        return Pair(
+            BitsArrayWithNumber(c),
+            system
+        )
     }
+
+    class MethodParseReturnValue(val system: BooleanSystem, val returnPrimitive: BitsArrayWithNumber? = null)
 }

@@ -1,7 +1,7 @@
 package parsed_types
 
 import bit_number_scheduler.BitsSchedulerImpl
-import constants.BitsArray
+import boolean_logic.data.BitsArrayWithNumber
 import constants.ConstantPoolIndex
 import extension.bitsSize
 import extension.fullDescription
@@ -20,7 +20,7 @@ class ClassSat(
     private val bitScheduler: BitsSchedulerImpl,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
-    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, BitsArray>()
+    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, BitsArrayWithNumber>()
 
     // TODO decide how to add the field below later
     // private val classTypesBitsMap
@@ -37,6 +37,8 @@ class ClassSat(
 
         // Parse Fieldref and Methodref
         for ((index, constant) in clazz.constantPool.withIndex()) {
+            // TODO parse object references
+
             when (constant?.tag) {
                 Const.CONSTANT_Fieldref -> {
                     constant as ConstantFieldref
@@ -44,7 +46,7 @@ class ClassSat(
                     val utf = nameAndType.getSignature(clazz.constantPool)
                     val type = BasicType.getType(utf)
 
-                    primaryTypesBitsMap[index] = bitScheduler.getAndShift(type.bitsSize)
+                    primaryTypesBitsMap[index] = BitsArrayWithNumber(bitScheduler.getAndShift(type.bitsSize), null)
                 }
                 Const.CONSTANT_Methodref -> {
                     constant as ConstantMethodref
