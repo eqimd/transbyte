@@ -15,7 +15,7 @@ fun main(args: Array<String>) {
     val arg2 = BitsArrayWithNumber(bitScheduler.getAndShift(INT_BITS))
 
     val f = classSat.getMethodByDescription("sum:(II)I")!!
-    val retVal = f.parse(listOf(arg1, arg2))
+    val retVal = f.parse(listOf(arg1, arg2), emptyList(), emptyList())
     println(retVal.system)
     println(retVal.returnPrimitive?.constant)
 }

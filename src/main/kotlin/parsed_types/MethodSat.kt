@@ -41,35 +41,36 @@ class MethodSat(
 
     val name: String = methodGen.name
 
-    fun parse(argsBitFields: List<BitsArrayWithNumber>): MethodParseReturnValue {
-        checkParseErrors(argsBitFields)
+    fun parse(argsPrimitives: List<BitsArrayWithNumber>, argsArrays: List<ArraySat>, argsReferences: List<ClassSat>): MethodParseReturnValue {
+        checkParseErrors(argsPrimitives, argsArrays, argsReferences)
 
-        val locals = parseArgsToLocals(argsBitFields)
+        val localsPrimitives = HashMap<Int, BitsArrayWithNumber>()
+        val localsArrays = HashMap<Int, ArraySat>()
+        val localsReferences = HashMap<Int, ClassSat>()
+        parseArgs(argsPrimitives, argsArrays, argsReferences, localsPrimitives, localsArrays, localsReferences)
 
-        // Stack for primitive variables
-        val stackVariables = ArrayDeque<BitsArrayWithNumber>()
-
-        // Stack for references
+        val stackPrimitives = ArrayDeque<BitsArrayWithNumber>()
         val stackReferences = ArrayDeque<ClassSat>()
+        val stackArrays = ArrayDeque<ArraySat>()
 
         val system = emptyList<List<BooleanFormula>>().toMutableList()
 
         for (instrHandle in methodGen.instructionList) {
             when (val instruction = instrHandle.instruction) {
                 is ILOAD -> {
-                    stackVariables.addLast(locals[instruction.index])
+                    stackPrimitives.addLast(localsPrimitives[instruction.index]!!)
                 }
                 is BIPUSH -> {
                     val value = instruction.value
                     val bitsArray = bitScheduler.getAndShift(INT_BITS)
 
-                    stackVariables.addLast(
+                    stackPrimitives.addLast(
                         BitsArrayWithNumber(bitsArray, value)
                     )
                 }
                 is IADD, is LADD -> {
-                    val a = stackVariables.removeLast()
-                    val b = stackVariables.removeLast()
+                    val a = stackPrimitives.removeLast()
+                    val b = stackPrimitives.removeLast()
                     val varSize = if (instruction is IADD) INT_BITS else LONG_BITS
 
                     val c: BitsArrayWithNumber
@@ -81,11 +82,11 @@ class MethodSat(
                         c = parsedVar
                         system.add(parseSystem)
                     }
-                    stackVariables.addLast(c)
+                    stackPrimitives.addLast(c)
                 }
                 is IMUL, is LMUL -> {
-                    val a = stackVariables.removeLast()
-                    val b = stackVariables.removeLast()
+                    val a = stackPrimitives.removeLast()
+                    val b = stackPrimitives.removeLast()
                     val varSize = if (instruction is IMUL) INT_BITS else LONG_BITS
                     val c: BitsArrayWithNumber
                     if (a.constant != null && b.constant != null) {
@@ -96,16 +97,16 @@ class MethodSat(
                         c = parsedVar
                         system.add(parseSystem)
                     }
-                    stackVariables.addLast(c)
+                    stackPrimitives.addLast(c)
                 }
                 is INVOKESTATIC -> {
                     // TODO should get parsing this instruction done
 
                     val invokedMethod = classSat.getMethodByMethodrefIndex(instruction.index)!!
-                    invokedMethod.parse(emptyList())
+                    invokedMethod.parse(emptyList(), emptyList(), emptyList())
                 }
                 is IRETURN -> {
-                    return MethodParseReturnValue(system, stackVariables.removeLast())
+                    return MethodParseReturnValue(system, stackPrimitives.removeLast())
                 }
                 is RETURN -> {
                     return MethodParseReturnValue(system)
@@ -119,14 +120,14 @@ class MethodSat(
         return MethodParseReturnValue(system)
     }
 
-    private fun checkParseErrors(argsBitFields: List<BitsArrayWithNumber>) {
-        if (argsBitFields.size != methodGen.argumentNames.size) {
+    private fun checkParseErrors(argsPrimitives: List<BitsArrayWithNumber>, argsArrays: List<ArraySat>, argsReferences: List<ClassSat>) {
+        if (argsPrimitives.size != methodGen.argumentNames.size) {
             throw MethodParseException(
                 "Number of arguments, given to .parse(...), is not same that is for" +
                     "`${clazz.className}` : `$method`"
             )
         }
-        for ((index, pair) in (argsBitFields zip methodGen.argumentTypes).withIndex()) {
+        for ((index, pair) in (argsPrimitives zip methodGen.argumentTypes).withIndex()) {
             if (pair.first.bitsArray.size != pair.second.bitsSize) {
                 throw MethodParseException(
                     "Size ${pair.first.bitsArray.size} of argument with index $index" +
@@ -137,13 +138,31 @@ class MethodSat(
         }
     }
 
-    private fun parseArgsToLocals(argsBitFields: List<BitsArrayWithNumber>): Array<BitsArrayWithNumber> {
-        val locals = Array(methodGen.maxLocals) { BitsArrayWithNumber(emptyArray()) }
-        for ((index, elem) in argsBitFields.withIndex()) {
-            locals[index] = elem
-        }
+    private fun parseArgs(
+        argsPrimitives: List<BitsArrayWithNumber>,
+        argsArrays: List<ArraySat>,
+        argsReferences: List<ClassSat>,
+        localsPrimitives: HashMap<Int, BitsArrayWithNumber>,
+        localsArrays: HashMap<Int, ArraySat>,
+        localsReferences: HashMap<Int, ClassSat>
+    ) {
+        val argsPrimitivesIter = argsPrimitives.iterator()
+        val argsArraysIter = argsArrays.iterator()
+        val argsReferencesIter = argsReferences.iterator()
 
-        return locals
+        for ((index, arg) in methodGen.argumentTypes.withIndex()) {
+            when {
+                arg.signature.startsWith('[') -> {
+                    localsArrays[index] = argsArraysIter.next()
+                }
+                arg.signature.startsWith('L') -> {
+                    localsReferences[index] = argsReferencesIter.next()
+                }
+                else -> {
+                    localsPrimitives[index] = argsPrimitivesIter.next()
+                }
+            }
+        }
     }
 
     private fun parseIADD(a: BitsArrayWithNumber, b: BitsArrayWithNumber, varSize: Int = INT_BITS): Pair<BitsArrayWithNumber, MutableList<BooleanFormula>> {
