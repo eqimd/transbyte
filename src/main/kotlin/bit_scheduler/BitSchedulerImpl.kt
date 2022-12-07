@@ -1,9 +1,9 @@
-package bit_number_scheduler
+package bit_scheduler
 
 import boolean_logic.basis.BitVariable
 import constants.BitsArray
 
-class BitsSchedulerImpl(private var currentPosition: Long) : BitsScheduler {
+class BitSchedulerImpl(private var currentPosition: Long) : BitScheduler {
     constructor() : this(0)
 
     override fun getAndShift(size: Int): BitsArray {

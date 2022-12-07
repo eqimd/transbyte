@@ -1,12 +1,12 @@
 package translator
 
-import bit_number_scheduler.BitsSchedulerImpl
+import bit_scheduler.BitSchedulerImpl
 import boolean_logic.BooleanFormula
 import org.apache.bcel.classfile.JavaClass
 
 class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
     private val classesMap = HashMap<String, JavaClass>()
-    private val bitScheduler = BitsSchedulerImpl()
+    private val bitScheduler = BitSchedulerImpl()
 
     init {
         for (clazz in classes.iterator()) {
@@ -15,7 +15,6 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
     }
 
     override fun translate(): BooleanFormula {
-
         TODO("")
     }
 }

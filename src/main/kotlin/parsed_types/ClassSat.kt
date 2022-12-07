@@ -1,7 +1,6 @@
 package parsed_types
 
-import bit_number_scheduler.BitsSchedulerImpl
-import boolean_logic.data.BitsArrayWithNumber
+import bit_scheduler.BitSchedulerImpl
 import constants.ConstantPoolIndex
 import extension.bitsSize
 import extension.fullDescription
@@ -14,13 +13,14 @@ import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic.BasicType
 import org.apache.bcel.generic.ConstantPoolGen
 import parsed_types.data.MethodRefNames
+import parsed_types.data.Variable
 
 class ClassSat(
     private val clazz: JavaClass,
-    private val bitScheduler: BitsSchedulerImpl,
+    private val bitScheduler: BitSchedulerImpl,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
-    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, BitsArrayWithNumber>()
+    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, Variable.BitsArrayWithNumber>()
 
     // TODO decide how to add the field below later
     // private val classTypesBitsMap
@@ -46,7 +46,7 @@ class ClassSat(
                     val utf = nameAndType.getSignature(clazz.constantPool)
                     val type = BasicType.getType(utf)
 
-                    primaryTypesBitsMap[index] = BitsArrayWithNumber(bitScheduler.getAndShift(type.bitsSize), null)
+                    primaryTypesBitsMap[index] = Variable.BitsArrayWithNumber(bitScheduler.getAndShift(type.bitsSize), null)
                 }
                 Const.CONSTANT_Methodref -> {
                     constant as ConstantMethodref
