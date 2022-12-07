@@ -45,8 +45,6 @@ class MethodSat(
 
         val stack = ArrayDeque<Variable>()
 
-        var lastStackReferenceType: Variable? = null
-
         val system: MutableBooleanSystem = emptyList<List<BooleanFormula>>().toMutableList()
 
         for (instrHandle in methodGen.instructionList) {
