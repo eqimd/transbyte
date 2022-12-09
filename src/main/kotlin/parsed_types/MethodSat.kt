@@ -8,14 +8,19 @@ import constants.Constants.LONG_BITS
 import constants.MutableBooleanSystem
 import exception.MethodParseException
 import exception.ParseInstructionException
+import extension.bitsSize
 import instruction_parser.InstructionParser
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.classfile.Method
+import org.apache.bcel.generic.ALOAD
 import org.apache.bcel.generic.ASTORE
+import org.apache.bcel.generic.BASTORE
 import org.apache.bcel.generic.BIPUSH
 import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.IADD
 import org.apache.bcel.generic.ICONST
+import org.apache.bcel.generic.IF_ICMPGE
+import org.apache.bcel.generic.IINC
 import org.apache.bcel.generic.ILOAD
 import org.apache.bcel.generic.IMUL
 import org.apache.bcel.generic.INVOKESTATIC
@@ -40,15 +45,33 @@ class MethodSat(
     val name: String = methodGen.name
 
     fun parse(vararg args: Variable): MethodParseReturnValue {
-        val locals = HashMap<Int, Variable>()
+        var locals = HashMap<Int, Variable>()
         parseArgs(locals, *args)
 
-        val stack = ArrayDeque<Variable>()
+        var stack = ArrayDeque<Variable>()
+        var system: MutableBooleanSystem = emptyList<List<BooleanFormula>>().toMutableList()
 
-        val system: MutableBooleanSystem = emptyList<List<BooleanFormula>>().toMutableList()
+        val conditionStack = ArrayDeque<ConditionCopy>()
 
         for (instrHandle in methodGen.instructionList) {
             when (val instruction = instrHandle.instruction) {
+                is IF_ICMPGE -> {
+                    val a = stack.removeLast()
+                    val b = stack.removeLast()
+
+                    val condition = InstructionParser.parseLessCondition(
+                        a as Variable.BitsArrayWithNumber,
+                        b as Variable.BitsArrayWithNumber
+                    )
+
+                    conditionStack.addLast(
+                        ConditionCopy(condition, stack, locals, system)
+                    )
+
+                    stack = ArrayDeque(stack)
+                    locals = HashMap(locals)
+                    system = ArrayDeque(system)
+                }
                 is ASTORE -> {
                     when (val last = stack.removeLast()) {
                         is Variable.ArrayReference, is Variable.ClassReference -> {
@@ -56,6 +79,24 @@ class MethodSat(
                         }
                         else -> {
                             throw ParseInstructionException("Can't parse ASTORE: last stack variable is primitive")
+                        }
+                    }
+                }
+                is BASTORE -> {
+                    val value = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val index = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayPrimitives
+
+                    // TODO right now it works only when index constant is known
+                    arrayRef.primitives[index.constant!!.toInt()] = value
+                }
+                is ALOAD -> {
+                    when (locals[instruction.index]) {
+                        is Variable.ArrayReference, is Variable.ClassReference -> {
+                            stack.addLast(locals[instruction.index]!!)
+                        }
+                        else -> {
+                            throw ParseInstructionException("Can't parse ALOAD: last stack variable is primitive")
                         }
                     }
                 }
@@ -81,7 +122,8 @@ class MethodSat(
                     val size = stack.removeLast() as Variable.BitsArrayWithNumber
                     val arrayPrimitives = Variable.ArrayReference.ArrayPrimitives(
                         size.constant?.toInt(),
-                        size.bitsArray.size
+                        instruction.type.bitsSize,
+                        bitScheduler
                     )
 
                     stack.addLast(arrayPrimitives)
@@ -116,11 +158,47 @@ class MethodSat(
                     stack.addLast(c)
                     system.add(parseSystem)
                 }
+                is IINC -> {
+                    val local = locals[instruction.index] as Variable.BitsArrayWithNumber
+                    val incr = Variable.BitsArrayWithNumber(
+                        bitScheduler.getAndShift(INT_BITS),
+                        instruction.increment
+                    )
+
+                    val (c, parseSystem) = InstructionParser.parseADD(
+                        local,
+                        incr,
+                        bitScheduler,
+                        INT_BITS
+                    )
+
+                    locals[instruction.index] = c
+                    system.add(parseSystem)
+                }
                 is INVOKESTATIC -> {
                     // TODO should get parsing this instruction done
 
                     val invokedMethod = classSat.getMethodByMethodrefIndex(instruction.index)!!
-                    invokedMethod.parse()
+                    val argsCount = invokedMethod.methodGen.argumentTypes.size
+                    val toArgs = Array(argsCount) { stack.removeLast() }
+
+                    when (val returnValue = invokedMethod.parse(*toArgs)) {
+                        is MethodParseReturnValue.SystemOnly -> {
+                           if (returnValue.system.isNotEmpty()) {
+                               system.add(returnValue.system.flatten())
+                           }
+                        }
+                        is MethodParseReturnValue.SystemWithPrimitive -> {
+                            if (returnValue.system.isNotEmpty()) {
+                                system.add(returnValue.system.flatten())
+                            }
+
+                            stack.addLast(returnValue.primitive)
+                        }
+                        else -> {
+                            throw ParseInstructionException("Return value not supported yet")
+                        }
+                    }
                 }
                 is IRETURN -> {
                     return MethodParseReturnValue.SystemWithPrimitive(
@@ -173,4 +251,11 @@ class MethodSat(
 
         class SystemWithArray(val system: BooleanSystem, val arrayReference: Variable.ArrayReference) : MethodParseReturnValue
     }
+
+    data class ConditionCopy(
+        val condition: BooleanFormula,
+        val stack: ArrayDeque<Variable>,
+        val locals: HashMap<Int, Variable>,
+        val system: MutableBooleanSystem
+    )
 }

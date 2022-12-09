@@ -22,8 +22,6 @@ class InstructionParser private constructor() {
             bitScheduler: BitScheduler,
             varSize: Int = INT_BITS,
         ): Pair<Variable.BitsArrayWithNumber, List<BooleanFormula>> {
-            // TODO should it consider overflowing?
-
             if (a.constant != null && b.constant != null) {
                 val constC = a.constant + b.constant
                 val cArray = bitScheduler.getAndShift(varSize)
@@ -35,7 +33,7 @@ class InstructionParser private constructor() {
                     parseSystem = List(varSize) { index ->
                         Equality(
                             cArray[index],
-                            BitValue.getByBoolean((cValue.shl(index) != 0))
+                            BitValue.getByBoolean(cValue.shr(index).and(1) != 0)
                         )
                     }
                 } else {
@@ -43,7 +41,7 @@ class InstructionParser private constructor() {
                     parseSystem = List(varSize) { index ->
                         Equality(
                             cArray[index],
-                            BitValue.getByBoolean((cValue.shl(index) != 0L))
+                            BitValue.getByBoolean((cValue.shr(index).and(1) != 0L))
                         )
                     }
                 }
@@ -53,8 +51,9 @@ class InstructionParser private constructor() {
 
             val system = emptyList<BooleanFormula>().toMutableList()
 
+            // TODO if we don't want to consider overflowing the size should be varSize + 1
             // c = a + b
-            val c = bitScheduler.getAndShift(varSize + 1)
+            val c = bitScheduler.getAndShift(varSize)
 
             val c0 = Equality(
                 c[0],
@@ -132,7 +131,7 @@ class InstructionParser private constructor() {
                     parseSystem = List(varSize) { index ->
                         Equality(
                             cArray[index],
-                            BitValue.getByBoolean((cValue.shl(index) != 0))
+                            BitValue.getByBoolean((cValue.shr(index).and(1) != 0))
                         )
                     }
                 } else {
@@ -140,7 +139,7 @@ class InstructionParser private constructor() {
                     parseSystem = List(varSize) { index ->
                         Equality(
                             cArray[index],
-                            BitValue.getByBoolean((cValue.shl(index) != 0L))
+                            BitValue.getByBoolean((cValue.shr(index).and(1) != 0L))
                         )
                     }
                 }
@@ -150,8 +149,9 @@ class InstructionParser private constructor() {
 
             val system = emptyList<BooleanFormula>().toMutableList()
 
+            // TODO if we don't want to consider overflowing the size should be 2 * varSize
             // c = a*b
-            val c = bitScheduler.getAndShift(2 * varSize)
+            val c = bitScheduler.getAndShift(varSize)
 
             val temp = bitScheduler.getAndShift(varSize * varSize)
             val tempMult = Array(varSize) { i ->
@@ -267,6 +267,13 @@ class InstructionParser private constructor() {
             val retArray = Variable.BitsArrayWithNumber(bitsArray, value)
 
             return Pair(retArray, parseSystem)
+        }
+
+        @JvmStatic
+        fun parseLessCondition(a: Variable.BitsArrayWithNumber, b: Variable.BitsArrayWithNumber): BooleanFormula {
+            // Condition: a < b
+
+            return Equality()
         }
     }
 }

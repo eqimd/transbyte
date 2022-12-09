@@ -13,7 +13,7 @@ fun main(args: Array<String>) {
     val bitScheduler = BitSchedulerImpl()
     val classSat = ClassSat(clazz, bitScheduler)
     val arg1 = Variable.BitsArrayWithNumber(bitScheduler.getAndShift(INT_BITS), 1)
-    val arg2 = Variable.BitsArrayWithNumber(bitScheduler.getAndShift(INT_BITS), 10)
+    val arg2 = Variable.BitsArrayWithNumber(bitScheduler.getAndShift(INT_BITS), 1)
 
     val f = classSat.getMethodByDescription("sum:(II)I")!!
     val retVal = f.parse(arg1, arg2) as MethodSat.MethodParseReturnValue.SystemWithPrimitive
