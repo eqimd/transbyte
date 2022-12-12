@@ -1,4 +1,4 @@
-package boolean_logic.basis
+package boolean_logic.base
 
 import boolean_logic.BooleanFormula
 

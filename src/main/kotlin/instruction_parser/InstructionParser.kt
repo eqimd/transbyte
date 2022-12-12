@@ -5,9 +5,10 @@ import boolean_logic.BooleanFormula
 import boolean_logic.additional.Equality
 import boolean_logic.additional.Maj
 import boolean_logic.additional.Xor
-import boolean_logic.basis.BitValue
-import boolean_logic.basis.Conjunction
-import boolean_logic.basis.Disjunction
+import boolean_logic.base.BitValue
+import boolean_logic.base.Conjunction
+import boolean_logic.base.Disjunction
+import boolean_logic.base.Negated
 import constants.Constants.INT_BITS
 import extension.plus
 import extension.times
@@ -101,11 +102,12 @@ class InstructionParser private constructor() {
                 system.add(cI)
             }
 
-            val cLast = Equality(
-                c[c.size - 1],
-                pPrev
-            )
-            system.add(cLast)
+            // TODO no need if we do not consider overflowing
+//            val cLast = Equality(
+//                c[c.size - 1],
+//                pPrev
+//            )
+//            system.add(cLast)
 
             return Pair(
                 Variable.BitsArrayWithNumber(c),
@@ -235,15 +237,16 @@ class InstructionParser private constructor() {
                 )
             }
 
-            for (i in 0 until varSize - 1) {
-                system.add(
-                    Equality(c[i + varSize], sumResMult[varSize - 1][i])
-                )
-            }
-
-            system.add(
-                Equality(c[2 * varSize - 1], carryMult[varSize - 1][varSize - 2])
-            )
+            // TODO no need if we do not consider overflowing
+//            for (i in 0 until varSize - 1) {
+//                system.add(
+//                    Equality(c[i + varSize], sumResMult[varSize - 1][i])
+//                )
+//            }
+//
+//            system.add(
+//                Equality(c[2 * varSize - 1], carryMult[varSize - 1][varSize - 2])
+//            )
 
             return Pair(
                 Variable.BitsArrayWithNumber(c),
@@ -273,7 +276,25 @@ class InstructionParser private constructor() {
         fun parseLessCondition(a: Variable.BitsArrayWithNumber, b: Variable.BitsArrayWithNumber): BooleanFormula {
             // Condition: a < b
 
-            return Equality()
+            // TODO maybe .constant.toInt() is enough
+            if (a.constant != null && b.constant != null) {
+                return BitValue.getByBoolean(a.constant.toLong() < b.constant.toLong())
+            }
+
+            var cond: BooleanFormula = Conjunction(b.bitsArray.first(), Negated(a.bitsArray.first()))
+
+            // TODO works when a.bitsArray.size == b.bitsArray.size
+            for (i in 1 until a.bitsArray.size) {
+                cond = Disjunction(
+                    Conjunction(b.bitsArray[i], Negated(a.bitsArray[i])),
+                    Conjunction(
+                        Equality(b.bitsArray[i], a.bitsArray[i]),
+                        cond
+                    )
+                )
+            }
+
+            return cond
         }
     }
 }
