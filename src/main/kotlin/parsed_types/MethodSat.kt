@@ -2,8 +2,12 @@ package parsed_types
 
 import bit_scheduler.BitScheduler
 import boolean_logic.BooleanFormula
-import boolean_logic.base.BitValue
+import boolean_logic.additional.Equality
+import boolean_logic.base.Conjunction
+import boolean_logic.base.Disjunction
+import boolean_logic.base.Negated
 import constants.BooleanSystem
+import constants.Constants.CYCLE_ITERATIONS
 import constants.Constants.INT_BITS
 import constants.Constants.LONG_BITS
 import constants.MutableBooleanSystem
@@ -18,6 +22,7 @@ import org.apache.bcel.generic.ASTORE
 import org.apache.bcel.generic.ArrayType
 import org.apache.bcel.generic.BASTORE
 import org.apache.bcel.generic.BIPUSH
+import org.apache.bcel.generic.BranchHandle
 import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.GOTO
 import org.apache.bcel.generic.IADD
@@ -35,6 +40,8 @@ import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
 import org.apache.bcel.generic.RETURN
 import parsed_types.data.Variable
+import java.lang.RuntimeException
+import kotlin.math.abs
 
 class MethodSat(
     private val clazz: JavaClass,
@@ -51,14 +58,18 @@ class MethodSat(
         var locals = HashMap<Int, Variable>()
         parseArgs(locals, *args)
 
-        var stack = ArrayDeque<Variable>()
-        var system: MutableBooleanSystem = emptyList<List<BooleanFormula>>().toMutableList()
+        val stack = ArrayDeque<Variable>()
+        val system: MutableBooleanSystem = emptyList<List<BooleanFormula>>().toMutableList()
 
         val conditionStack = ArrayDeque<ConditionCopy>()
-//        val cycleIterationsStack = ArrayDeque<Int>()
+        val cycleIterationsStack = ArrayDeque<Int>()
 
         var instrIndex = 0
         while (instrIndex < methodGen.instructionList.instructions.size) {
+            if (conditionStack.lastOrNull()?.instructionPosition == instrIndex) {
+                locals = parseConditionLocals(locals, conditionStack.removeLast(), system)
+            }
+
             when (val instruction = methodGen.instructionList.instructions[instrIndex]) {
                 is IF_ICMPGE -> {
                     val b = stack.removeLast()
@@ -69,24 +80,64 @@ class MethodSat(
                         b as Variable.BitsArrayWithNumber
                     )
 
-                    // TODO right now it works only when constant in condition is known
-                    if (condition == BitValue.FALSE) {
-                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
+                    // TODO do we need this optimisation?
+//                    if (condition == BitValue.FALSE) {
+//                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
+//                    }
+
+                    // TODO constants is not necessary ints
+                    if (a.constant != null && b.constant != null) {
+                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()))
                     }
 
-                    conditionStack.addLast(
-                        ConditionCopy(condition, stack, locals, system)
-                    )
+                    val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
+                    val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
-                    stack = ArrayDeque(stack)
-                    locals = HashMap(locals)
-                    system = ArrayDeque(system)
+                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                        conditionStack.addLast(
+                            ConditionCopy(
+                                condition,
+                                locals,
+                                instrJumpIndex
+                            )
+                        )
+
+                        locals = HashMap(locals)
+                    }
                 }
                 is GOTO -> {
-                    // TODO right now it works only when constant in condition is known
-                    if (instruction.index < methodGen.instructionList.instructionPositions[instrIndex]) {
+                    val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
+                    val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
+
+                    if (instrJumpIndex < instrIndex) {
                         // Cycle detected
-                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
+                        if (cycleIterationsStack.isNotEmpty()) {
+                            val last = cycleIterationsStack.removeLast()
+                            if (last != 0) {
+                                cycleIterationsStack.addLast(last - 1)
+                                instrIndex = instrJumpIndex - 1
+
+                                locals = parseConditionLocals(locals, conditionStack.removeLast(), system)
+                            } else {
+                                instrIndex = conditionStack.last().instructionPosition - 1
+                            }
+                        } else {
+                            cycleIterationsStack.addLast(CYCLE_ITERATIONS - 1)
+                            instrIndex = instrJumpIndex - 1
+
+                            locals = parseConditionLocals(locals, conditionStack.removeLast(), system)
+                        }
+                    } else {
+                        // Next instructions will be from else-branch
+                        val condCopy = conditionStack.removeLast()
+                        val newCond = ConditionCopy(
+                            Negated(condCopy.condition),
+                            locals,
+                            instrJumpIndex
+                        )
+                        conditionStack.addLast(newCond)
+
+                        locals = condCopy.locals
                     }
                 }
                 is ASTORE -> {
@@ -264,6 +315,54 @@ class MethodSat(
         }
     }
 
+    private fun parseConditionLocals(
+        locals: HashMap<Int, Variable>,
+        conditionCopy: ConditionCopy,
+        system: MutableList<List<BooleanFormula>>
+    ): HashMap<Int, Variable> {
+        val newLocals = HashMap<Int, Variable>()
+
+        for (key in conditionCopy.locals.keys) {
+            when (val condLocal = conditionCopy.locals[key]) {
+                is Variable.BitsArrayWithNumber -> {
+                    val curLocal = locals[key] as Variable.BitsArrayWithNumber
+                    if (curLocal.bitsArray.first().bitNumber == condLocal.bitsArray.first().bitNumber) {
+                        newLocals[key] = locals[key]!!
+                        continue
+                    }
+
+                    val newLocal = bitScheduler.getAndShift(condLocal.bitsArray.size)
+                    newLocals[key] = Variable.BitsArrayWithNumber(newLocal)
+                    val condLocalsSystem = emptyList<BooleanFormula>().toMutableList()
+                    for (i in 0 until condLocal.bitsArray.size) {
+                        condLocalsSystem.add(
+                            Equality(
+                                newLocal[i],
+                                Disjunction(
+                                    Conjunction(
+                                        curLocal.bitsArray[i],
+                                        conditionCopy.condition
+                                    ),
+                                    Conjunction(
+                                        condLocal.bitsArray[i],
+                                        Negated(conditionCopy.condition)
+                                    )
+                                )
+                            )
+                        )
+                    }
+
+                    system.add(condLocalsSystem)
+                }
+                else -> {
+                    throw RuntimeException("Only primitive variables supported right now")
+                }
+            }
+        }
+
+        return newLocals
+    }
+
     sealed interface MethodParseReturnValue {
         class SystemOnly(val system: BooleanSystem) : MethodParseReturnValue
 
@@ -274,8 +373,7 @@ class MethodSat(
 
     data class ConditionCopy(
         val condition: BooleanFormula,
-        val stack: ArrayDeque<Variable>,
         val locals: HashMap<Int, Variable>,
-        val system: MutableBooleanSystem,
+        val instructionPosition: Int,
     )
 }
