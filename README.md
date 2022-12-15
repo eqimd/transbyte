@@ -1,2 +1,2 @@
-### transbyte -- a Translator of Java Bytecode to CIRCUIT-SAT
+### transbyte -- Translator of Java Bytecode to CIRCUIT-SAT
 
