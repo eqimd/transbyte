@@ -8,11 +8,11 @@ import constants.BooleanSystem
 import parsed_types.ClassSat
 
 sealed interface Variable {
-    class BitsArrayWithNumber private constructor(val bitsArray: BitsArray, val constant: Number? = null) : Variable {
+    class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : Variable {
         companion object {
-            fun create(size: Int, constant: Number? = null, bitScheduler: BitScheduler): Pair<BitsArrayWithNumber, BooleanSystem> {
+            fun create(size: Int, constant: Number? = null, bitScheduler: BitScheduler): Pair<Primitive, BooleanSystem> {
                 val bitsArray = bitScheduler.getAndShift(size)
-                val primitive = BitsArrayWithNumber(bitsArray, constant)
+                val primitive = Primitive(bitsArray, constant)
 
                 val parseSystem: List<Equality>
                 if (constant != null) {
@@ -33,7 +33,7 @@ sealed interface Variable {
 
     sealed class ArrayReference(val size: Int? = null) : Variable {
         class ArrayOfPrimitives private constructor(size: Int?, val primitiveSize: Int) : ArrayReference(size) {
-            var primitives = HashMap<Int, BitsArrayWithNumber>()
+            var primitives = HashMap<Int, Primitive>()
 
             companion object {
                 fun create(size: Int? = null, primitiveSize: Int, bitScheduler: BitScheduler): Pair<ArrayReference, BooleanSystem> {
@@ -42,7 +42,7 @@ sealed interface Variable {
 
                     if (size != null) {
                         for (i in 0 until size) {
-                            val (primitive, sys) = BitsArrayWithNumber.create(size = primitiveSize, bitScheduler = bitScheduler, constant = 0)
+                            val (primitive, sys) = Primitive.create(size = primitiveSize, bitScheduler = bitScheduler, constant = 0)
                             parseSystem.addAll(sys)
                             arrayOfPrimitives.primitives[i] = primitive
                         }

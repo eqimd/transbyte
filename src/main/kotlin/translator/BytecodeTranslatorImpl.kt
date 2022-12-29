@@ -42,7 +42,7 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
                     TODO()
                 }
                 is BasicType -> {
-                    val (arg, _) = Variable.BitsArrayWithNumber.create(
+                    val (arg, _) = Variable.Primitive.create(
                         bitScheduler = bitScheduler,
                         size = type.bitsSize
                     )

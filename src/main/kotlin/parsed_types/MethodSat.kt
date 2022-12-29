@@ -79,8 +79,8 @@ class MethodSat(
             val instruction = methodGen.instructionList.instructions[instrIndex]
             when (instruction) {
                 is IF_ICMPGE -> {
-                    val b = stack.removeLast() as Variable.BitsArrayWithNumber
-                    val a = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val b = stack.removeLast() as Variable.Primitive
+                    val a = stack.removeLast() as Variable.Primitive
 
                     val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b, bitScheduler)
                     system.addAll(condSystem)
@@ -112,7 +112,7 @@ class MethodSat(
                     }
                 }
                 is IFLE -> {
-                    val a = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val a = stack.removeLast() as Variable.Primitive
 
                     // reversed condition, because if original condition is true then interpreter should jump forward
                     val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a, bitScheduler)
@@ -196,8 +196,8 @@ class MethodSat(
                 }
 
                 is BASTORE -> {
-                    val value = stack.removeLast() as Variable.BitsArrayWithNumber
-                    val index = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val value = stack.removeLast() as Variable.Primitive
+                    val index = stack.removeLast() as Variable.Primitive
                     val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayOfPrimitives
 
                     // TODO right now it works only when index constant is known
@@ -217,7 +217,7 @@ class MethodSat(
                 }
 
                 is ILOAD -> {
-                    stack.addLast(locals[instruction.index]!! as Variable.BitsArrayWithNumber)
+                    stack.addLast(locals[instruction.index]!! as Variable.Primitive)
                 }
 
                 is ICONST -> {
@@ -228,7 +228,7 @@ class MethodSat(
                 }
 
                 is ISTORE -> {
-                    locals[instruction.index] = stack.removeLast() as Variable.BitsArrayWithNumber
+                    locals[instruction.index] = stack.removeLast() as Variable.Primitive
                 }
 
                 is BIPUSH -> {
@@ -240,7 +240,7 @@ class MethodSat(
 
                 is BALOAD -> {
                     // TODO right now it works only when index is known
-                    val index = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val index = stack.removeLast() as Variable.Primitive
                     val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayOfPrimitives
 
                     stack.addLast(
@@ -249,7 +249,7 @@ class MethodSat(
                 }
 
                 is NEWARRAY -> {
-                    val size = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val size = stack.removeLast() as Variable.Primitive
                     val arrayType = instruction.type as ArrayType
                     val (arrayPrimitives, parseSystem) = Variable.ArrayReference.ArrayOfPrimitives.create(
                         size = size.constant?.toInt(),
@@ -267,8 +267,8 @@ class MethodSat(
 
                     val varSize = if (instruction is IADD) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseSum(
-                        a as Variable.BitsArrayWithNumber,
-                        b as Variable.BitsArrayWithNumber,
+                        a as Variable.Primitive,
+                        b as Variable.Primitive,
                         varSize,
                         bitScheduler
                     )
@@ -283,8 +283,8 @@ class MethodSat(
 
                     val varSize = if (instruction is IMUL) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseMultiply(
-                        a as Variable.BitsArrayWithNumber,
-                        b as Variable.BitsArrayWithNumber,
+                        a as Variable.Primitive,
+                        b as Variable.Primitive,
                         varSize,
                         bitScheduler
                     )
@@ -294,8 +294,8 @@ class MethodSat(
                 }
 
                 is IINC -> {
-                    val local = locals[instruction.index] as Variable.BitsArrayWithNumber
-                    val (incr, _) = Variable.BitsArrayWithNumber.create(
+                    val local = locals[instruction.index] as Variable.Primitive
+                    val (incr, _) = Variable.Primitive.create(
                         size = INT_BITS,
                         constant = instruction.increment,
                         bitScheduler = bitScheduler
@@ -313,8 +313,8 @@ class MethodSat(
                 }
 
                 is ISUB, is LSUB -> {
-                    val b = stack.removeLast() as Variable.BitsArrayWithNumber
-                    val a = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val b = stack.removeLast() as Variable.Primitive
+                    val a = stack.removeLast() as Variable.Primitive
 
                     val varSize = if (instruction is ISUB) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseSubtraction(a, b, varSize, bitScheduler)
@@ -324,8 +324,8 @@ class MethodSat(
                 }
 
                 is IXOR, is LXOR -> {
-                    val a = stack.removeLast() as Variable.BitsArrayWithNumber
-                    val b = stack.removeLast() as Variable.BitsArrayWithNumber
+                    val a = stack.removeLast() as Variable.Primitive
+                    val b = stack.removeLast() as Variable.Primitive
 
                     val varSize = if (instruction is IXOR) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseXor(a, b, varSize, bitScheduler)
@@ -365,7 +365,7 @@ class MethodSat(
                 is IRETURN -> {
                     return MethodParseReturnValue.SystemWithPrimitive(
                         system,
-                        stack.removeLast() as Variable.BitsArrayWithNumber
+                        stack.removeLast() as Variable.Primitive
                     )
                 }
 
@@ -406,7 +406,7 @@ class MethodSat(
                 }
 
                 is BasicType -> {
-                    locals[index] = args[index] as Variable.BitsArrayWithNumber
+                    locals[index] = args[index] as Variable.Primitive
                 }
             }
         }
@@ -421,14 +421,14 @@ class MethodSat(
 
         for (key in conditionCopy.locals.keys) {
             when (val condLocal = conditionCopy.locals[key]) {
-                is Variable.BitsArrayWithNumber -> {
-                    val curLocal = locals[key] as Variable.BitsArrayWithNumber
+                is Variable.Primitive -> {
+                    val curLocal = locals[key] as Variable.Primitive
                     if (curLocal.bitsArray.first().bitNumber == condLocal.bitsArray.first().bitNumber) {
                         newLocals[key] = locals[key]!!
                         continue
                     }
 
-                    val newLocal = Variable.BitsArrayWithNumber.create(
+                    val newLocal = Variable.Primitive.create(
                         size = condLocal.bitsArray.size,
                         bitScheduler = bitScheduler
                     ).first
@@ -478,7 +478,7 @@ class MethodSat(
                         val curLocalPrim = curLocal.primitives[k]!!
 
                         if (condLocalPrim.bitsArray.first() != curLocalPrim.bitsArray.first()) {
-                            val newPrim = Variable.BitsArrayWithNumber.create(
+                            val newPrim = Variable.Primitive.create(
                                 size = curLocalPrim.bitsArray.size,
                                 bitScheduler = bitScheduler
                             ).first
@@ -545,7 +545,7 @@ class MethodSat(
     sealed interface MethodParseReturnValue {
         class SystemOnly(val system: BooleanSystem) : MethodParseReturnValue
 
-        class SystemWithPrimitive(val system: BooleanSystem, val primitive: Variable.BitsArrayWithNumber) :
+        class SystemWithPrimitive(val system: BooleanSystem, val primitive: Variable.Primitive) :
             MethodParseReturnValue
 
         class SystemWithArray(val system: BooleanSystem, val arrayReference: Variable.ArrayReference) :

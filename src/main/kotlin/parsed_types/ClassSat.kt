@@ -20,7 +20,7 @@ class ClassSat(
     private val bitScheduler: BitScheduler,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
-    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, Variable.BitsArrayWithNumber>()
+    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, Variable.Primitive>()
 
     // TODO decide how to add the field below later
     // private val classTypesBitsMap
@@ -47,7 +47,7 @@ class ClassSat(
                     val type = BasicType.getType(utf)
 
                     // TODO do we need to add system with default zero value?
-                    val (primitive, _) = Variable.BitsArrayWithNumber.create(
+                    val (primitive, _) = Variable.Primitive.create(
                         size = type.bitsSize,
                         bitScheduler = bitScheduler
                     )

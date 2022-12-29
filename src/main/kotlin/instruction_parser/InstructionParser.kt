@@ -20,17 +20,17 @@ import parsed_types.data.Variable
 object InstructionParser {
     @JvmStatic
     fun parseSum(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
-    ): Pair<Variable.BitsArrayWithNumber, BooleanSystem> {
+    ): Pair<Variable.Primitive, BooleanSystem> {
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant + b.constant
 
             val cValue = constC.toInt()
-            val (c, parseSystem) = Variable.BitsArrayWithNumber.create(
+            val (c, parseSystem) = Variable.Primitive.create(
                 size = varSize,
                 constant = cValue,
                 bitScheduler = bitScheduler
@@ -43,7 +43,7 @@ object InstructionParser {
 
         // TODO if we don't want to consider overflowing the size should be varSize + 1
         // c = a + b
-        val (cPrim, _) = Variable.BitsArrayWithNumber.create(
+        val (cPrim, _) = Variable.Primitive.create(
             size = varSize,
             bitScheduler = bitScheduler
         )
@@ -107,16 +107,16 @@ object InstructionParser {
 
     @JvmStatic
     fun parseMultiply(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
-    ): Pair<Variable.BitsArrayWithNumber, BooleanSystem> {
+    ): Pair<Variable.Primitive, BooleanSystem> {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant * b.constant
 
             val cValue = constC.toInt()
-            val (c, parseSystem) = Variable.BitsArrayWithNumber.create(
+            val (c, parseSystem) = Variable.Primitive.create(
                 size = varSize,
                 constant = cValue,
                 bitScheduler = bitScheduler
@@ -129,7 +129,7 @@ object InstructionParser {
 
         // TODO if we don't want to consider overflowing the size should be 2 * varSize
         // c = a*b
-        val (cPrim, _) = Variable.BitsArrayWithNumber.create(
+        val (cPrim, _) = Variable.Primitive.create(
             size = varSize,
             bitScheduler = bitScheduler
         )
@@ -233,18 +233,18 @@ object InstructionParser {
 
     @JvmStatic
     fun parseSubtraction(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
-    ): Pair<Variable.BitsArrayWithNumber, BooleanSystem> {
+    ): Pair<Variable.Primitive, BooleanSystem> {
         // a - b
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant - b.constant
 
             val cValue = constC.toInt()
-            val (c, parseSystem) = Variable.BitsArrayWithNumber.create(
+            val (c, parseSystem) = Variable.Primitive.create(
                 size = varSize,
                 constant = cValue,
                 bitScheduler = bitScheduler
@@ -261,7 +261,7 @@ object InstructionParser {
          */
 
         // bInverted = ~b
-        val (bInverted, _) = Variable.BitsArrayWithNumber.create(
+        val (bInverted, _) = Variable.Primitive.create(
             size = b.bitsArray.size,
             bitScheduler = bitScheduler
         )
@@ -289,16 +289,16 @@ object InstructionParser {
 
     @JvmStatic
     fun parseXor(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
-    ): Pair<Variable.BitsArrayWithNumber, BooleanSystem> {
+    ): Pair<Variable.Primitive, BooleanSystem> {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant xor b.constant
 
             val cValue = constC.toInt()
-            val (c, parseSystem) = Variable.BitsArrayWithNumber.create(
+            val (c, parseSystem) = Variable.Primitive.create(
                 size = varSize,
                 constant = cValue,
                 bitScheduler = bitScheduler
@@ -309,7 +309,7 @@ object InstructionParser {
 
         val system = emptyList<Equality>().toMutableList()
 
-        val (c, _) = Variable.BitsArrayWithNumber.create(
+        val (c, _) = Variable.Primitive.create(
             size = varSize,
             bitScheduler = bitScheduler
         )
@@ -331,10 +331,10 @@ object InstructionParser {
     }
 
     @JvmStatic
-    fun parsePush(value: Number, bitScheduler: BitScheduler): Pair<Variable.BitsArrayWithNumber, BooleanSystem> {
+    fun parsePush(value: Number, bitScheduler: BitScheduler): Pair<Variable.Primitive, BooleanSystem> {
         // TODO add varSize for longs
 
-        return Variable.BitsArrayWithNumber.create(
+        return Variable.Primitive.create(
             size = INT_BITS,
             constant = value,
             bitScheduler = bitScheduler
@@ -343,8 +343,8 @@ object InstructionParser {
 
     @JvmStatic
     fun parseLessCondition(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         bitScheduler: BitScheduler
     ): Pair<BitVariable, List<Equality>> {
         // Condition: a < b
@@ -392,8 +392,8 @@ object InstructionParser {
 
     @JvmStatic
     fun parseLessOrEqualCondition(
-        a: Variable.BitsArrayWithNumber,
-        b: Variable.BitsArrayWithNumber,
+        a: Variable.Primitive,
+        b: Variable.Primitive,
         bitScheduler: BitScheduler
     ): Pair<BitVariable, List<Equality>> {
         // Condition: a <= b
@@ -446,7 +446,7 @@ object InstructionParser {
     }
 
     @JvmStatic
-    fun parseGreaterThanZero(a: Variable.BitsArrayWithNumber, bitScheduler: BitScheduler): Pair<BitVariable, BooleanSystem> {
+    fun parseGreaterThanZero(a: Variable.Primitive, bitScheduler: BitScheduler): Pair<BitVariable, BooleanSystem> {
 
         // a > 0
         val system = emptyList<Equality>().toMutableList()
