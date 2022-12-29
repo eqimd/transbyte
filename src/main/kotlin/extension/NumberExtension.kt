@@ -27,3 +27,29 @@ operator fun Number.times(constant: Number): Number =
             throw NotSupportedOperationOnNumbersException("Can't multiply ${this.javaClass} and ${constant.javaClass}")
         }
     }
+
+operator fun Number.minus(constant: Number): Number =
+    when {
+        (this is Int && constant is Int) -> {
+            this.toInt() - constant.toInt()
+        }
+        (this is Long && constant is Long) -> {
+            this.toLong() - constant.toLong()
+        }
+        else -> {
+            throw NotSupportedOperationOnNumbersException("Can't subtract ${this.javaClass} and ${constant.javaClass}")
+        }
+    }
+
+infix fun Number.xor(constant: Number): Number =
+    when {
+        (this is Int && constant is Int) -> {
+            this.toInt() xor constant.toInt()
+        }
+        (this is Long && constant is Long) -> {
+            this.toLong() xor constant.toLong()
+        }
+        else -> {
+            throw NotSupportedOperationOnNumbersException("Can't xor ${this.javaClass} and ${constant.javaClass}")
+        }
+    }

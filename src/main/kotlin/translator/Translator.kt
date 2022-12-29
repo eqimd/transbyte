@@ -1,7 +1,10 @@
 package translator
 
-import boolean_logic.BooleanFormula
+import parsed_types.data.EncodingCircuit
+import parsed_types.data.Variable
 
 interface Translator {
-    fun translate(): BooleanFormula
+    fun translate(className: String, methodDescription: String): EncodingCircuit
+
+    fun translate(className: String, methodDescription: String, vararg args: Variable): EncodingCircuit
 }

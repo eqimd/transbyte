@@ -1,6 +1,6 @@
 package parsed_types
 
-import bit_scheduler.BitSchedulerImpl
+import bit_scheduler.BitScheduler
 import constants.ConstantPoolIndex
 import extension.bitsSize
 import extension.fullDescription
@@ -16,8 +16,8 @@ import parsed_types.data.MethodRefNames
 import parsed_types.data.Variable
 
 class ClassSat(
-    private val clazz: JavaClass,
-    private val bitScheduler: BitSchedulerImpl,
+    val clazz: JavaClass,
+    private val bitScheduler: BitScheduler,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
     private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, Variable.BitsArrayWithNumber>()
@@ -46,7 +46,13 @@ class ClassSat(
                     val utf = nameAndType.getSignature(clazz.constantPool)
                     val type = BasicType.getType(utf)
 
-                    primaryTypesBitsMap[index] = Variable.BitsArrayWithNumber(bitScheduler.getAndShift(type.bitsSize), null)
+                    // TODO do we need to add system with default zero value?
+                    val (primitive, _) = Variable.BitsArrayWithNumber.create(
+                        size = type.bitsSize,
+                        bitScheduler = bitScheduler
+                    )
+
+                    primaryTypesBitsMap[index] = primitive
                 }
                 Const.CONSTANT_Methodref -> {
                     constant as ConstantMethodref
@@ -62,10 +68,14 @@ class ClassSat(
         }
 
         for (method in clazz.methods) {
-            _methods[method.fullDescription] = MethodSat(clazz, this, method, cpGen, bitScheduler)
+            _methods[method.fullDescription] = MethodSat(this, method, cpGen, bitScheduler)
         }
     }
 
+    /*
+     * Description is a string in format "methodName:signature",
+     * e.g. "sum:(II)I"
+     */
     fun getMethodByDescription(description: String): MethodSat? =
         methods[description]
 
