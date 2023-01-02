@@ -16,6 +16,9 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
     implementation("org.apache.bcel:bcel:6.6.0")
+    implementation("io.github.microutils:kotlin-logging-jvm:3.0.4")
+    implementation("org.slf4j:slf4j-api:2.0.6")
+    implementation("org.slf4j:slf4j-simple:2.0.6")
 }
 
 tasks.test {

@@ -15,6 +15,7 @@ import exception.MethodParseException
 import exception.ParseInstructionException
 import extension.bitsSize
 import instruction_parser.InstructionParser
+import mu.KotlinLogging
 import org.apache.bcel.classfile.Method
 import org.apache.bcel.generic.ALOAD
 import org.apache.bcel.generic.ASTORE
@@ -60,7 +61,10 @@ class MethodSat(
 
     val name: String = methodGen.name
 
+    private val logger = KotlinLogging.logger {}
+
     fun parse(vararg args: Variable): MethodParseReturnValue {
+        logger.info { "Parsing method '$name'" }
         var locals = HashMap<Int, Variable>()
         parseArgs(locals, *args)
 
@@ -77,6 +81,7 @@ class MethodSat(
             }
 
             val instruction = methodGen.instructionList.instructions[instrIndex]
+            logger.debug { "Parsing instruction '$instruction'" }
             when (instruction) {
                 is IF_ICMPGE -> {
                     val b = stack.removeLast() as Variable.Primitive
