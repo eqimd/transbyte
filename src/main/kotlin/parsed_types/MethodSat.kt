@@ -18,6 +18,7 @@ import instruction_parser.InstructionParser
 import mu.KotlinLogging
 import org.apache.bcel.classfile.Method
 import org.apache.bcel.generic.ALOAD
+import org.apache.bcel.generic.ARETURN
 import org.apache.bcel.generic.ASTORE
 import org.apache.bcel.generic.ArrayType
 import org.apache.bcel.generic.BALOAD
@@ -43,6 +44,7 @@ import org.apache.bcel.generic.LADD
 import org.apache.bcel.generic.LMUL
 import org.apache.bcel.generic.LSUB
 import org.apache.bcel.generic.LXOR
+import org.apache.bcel.generic.LoadInstruction
 import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
 import org.apache.bcel.generic.RETURN
@@ -97,7 +99,7 @@ class MethodSat(
 
                     // TODO constants is not necessary ints
                     if (a.constant != null && b.constant != null) {
-                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()))
+                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()) - 1)
                     }
 
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
@@ -131,7 +133,7 @@ class MethodSat(
 
                     // TODO constant is not necessary int
                     if (a.constant != null) {
-                        cycleIterationsStack.addLast(a.constant.toInt())
+                        cycleIterationsStack.addLast(abs(a.constant.toInt()) - 1)
                     }
 
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
@@ -158,11 +160,18 @@ class MethodSat(
                         // Cycle detected
                         if (cycleIterationsStack.isNotEmpty()) {
                             val last = cycleIterationsStack.removeLast()
-                            if (last != 0) {
+                            logger.debug { "Cycle iteration: $last" }
+                            if (last > 0) {
                                 cycleIterationsStack.addLast(last - 1)
                                 instrIndex = instrJumpIndex - 1
 
-                                locals = parseConditionLocals(locals, conditionStack.removeLast(), system)
+                                val instructionToJump = methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+                                val localIndex = instructionToJump.index
+
+                                val condLast = conditionStack.removeLast()
+                                condLast.cycleVariableIndex = localIndex
+
+                                locals = parseConditionLocals(locals, condLast, system)
                             } else {
                                 instrIndex = conditionStack.last().instructionPosition - 1
                             }
@@ -170,7 +179,13 @@ class MethodSat(
                             cycleIterationsStack.addLast(CYCLE_ITERATIONS - 1)
                             instrIndex = instrJumpIndex - 1
 
-                            locals = parseConditionLocals(locals, conditionStack.removeLast(), system)
+                            val instructionToJump = methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+                            val localIndex = instructionToJump.index
+
+                            val condLast = conditionStack.removeLast()
+                            condLast.cycleVariableIndex = localIndex
+
+                            locals = parseConditionLocals(locals, condLast, system)
                         }
                     } else {
                         // Next instructions will be from else-branch
@@ -247,6 +262,7 @@ class MethodSat(
                     // TODO right now it works only when index is known
                     val index = stack.removeLast() as Variable.Primitive
                     val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayOfPrimitives
+                    logger.debug { "Index constant: ${index.constant}" }
 
                     stack.addLast(
                         arrayRef.primitives[index.constant] as Variable
@@ -361,6 +377,14 @@ class MethodSat(
                             stack.addLast(returnValue.primitive)
                         }
 
+                        is MethodParseReturnValue.SystemWithArray -> {
+                            if (returnValue.system.isNotEmpty()) {
+                                system.addAll(returnValue.system)
+                            }
+
+                            stack.addLast(returnValue.arrayReference)
+                        }
+
                         else -> {
                             throw ParseInstructionException("Return value not supported yet")
                         }
@@ -372,6 +396,18 @@ class MethodSat(
                         system,
                         stack.removeLast() as Variable.Primitive
                     )
+                }
+
+                is ARETURN -> {
+                    if (methodGen.returnType is ArrayType) {
+                        return MethodParseReturnValue.SystemWithArray(
+                            system,
+                            stack.removeLast() as Variable.ArrayReference
+                        )
+                    } else {
+                        logger.debug { "Can't return references yet" }
+                        TODO("Can't parse ARETURN: only returning arrays supported")
+                    }
                 }
 
                 is RETURN -> {
@@ -425,6 +461,11 @@ class MethodSat(
         val newLocals = HashMap<Int, Variable>()
 
         for (key in conditionCopy.locals.keys) {
+            if (key == conditionCopy.cycleVariableIndex) {
+                newLocals[key] = locals[key]!!
+                continue
+            }
+
             when (val condLocal = conditionCopy.locals[key]) {
                 is Variable.Primitive -> {
                     val curLocal = locals[key] as Variable.Primitive
@@ -563,6 +604,7 @@ class MethodSat(
         val conditionBit: BitVariable,
         val locals: HashMap<Int, Variable>,
         val instructionPosition: Int,
-        val inElseBranch: Boolean = false
+        val inElseBranch: Boolean = false,
+        var cycleVariableIndex: Int? = null
     )
 }

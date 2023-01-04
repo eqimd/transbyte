@@ -14,6 +14,9 @@ object Constants {
 
     // TODO allow user to set this constant
     const val CYCLE_ITERATIONS = 100
+    const val ARRAY_INPUT_SIZE = 19
 
     const val LOG_LEVEL_DEBUG = "debug"
+
+    const val PROGRAM_NAME = "transbyte"
 }

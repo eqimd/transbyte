@@ -2,6 +2,7 @@ package translator
 
 import bit_scheduler.BitScheduler
 import boolean_logic.additional.Equality
+import constants.Constants
 import extension.bitsSize
 import mu.KotlinLogging
 import org.apache.bcel.classfile.JavaClass
@@ -39,6 +40,7 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
                     is ArrayType -> {
                         // TODO parse nested arrays
                         val (arg, _) = Variable.ArrayReference.ArrayOfPrimitives.create(
+                            size = Constants.ARRAY_INPUT_SIZE,
                             primitiveSize = type.basicType.bitsSize,
                             bitScheduler = bitScheduler
                         )
@@ -68,6 +70,10 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
             is MethodSat.MethodParseReturnValue.SystemWithPrimitive -> {
                 circuitSystem.addAll(methodRetVal.system)
                 EncodingCircuit(methodSatArgs.toList(), methodRetVal.primitive, circuitSystem)
+            }
+            is MethodSat.MethodParseReturnValue.SystemWithArray -> {
+                circuitSystem.addAll(methodRetVal.system)
+                EncodingCircuit(methodSatArgs.toList(), methodRetVal.arrayReference, circuitSystem)
             }
             else -> {
                 TODO("Not supported yet")
