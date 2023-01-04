@@ -22,9 +22,9 @@ object InstructionParser {
     fun parseSum(
         a: Variable.Primitive,
         b: Variable.Primitive,
-        varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
     ): Pair<Variable.Primitive, BooleanSystem> {
+        val varSize = a.bitsArray.size
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant + b.constant
@@ -109,9 +109,10 @@ object InstructionParser {
     fun parseMultiply(
         a: Variable.Primitive,
         b: Variable.Primitive,
-        varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
     ): Pair<Variable.Primitive, BooleanSystem> {
+        val varSize = a.bitsArray.size
+
         if (a.constant != null && b.constant != null) {
             val constC = a.constant * b.constant
 
@@ -235,10 +236,11 @@ object InstructionParser {
     fun parseSubtraction(
         a: Variable.Primitive,
         b: Variable.Primitive,
-        varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
     ): Pair<Variable.Primitive, BooleanSystem> {
         // a - b
+
+        val varSize = a.bitsArray.size
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant - b.constant
@@ -278,10 +280,10 @@ object InstructionParser {
         val (one, oneSystem) = parsePush(1, bitScheduler)
         system.addAll(oneSystem)
 
-        val (bInvertedPlusOne, plusOneSystem) = parseSum(bInverted, one, varSize, bitScheduler)
+        val (bInvertedPlusOne, plusOneSystem) = parseSum(bInverted, one, bitScheduler)
         system.addAll(plusOneSystem)
 
-        val (c, sumSystem) = parseSum(a, bInvertedPlusOne, varSize, bitScheduler)
+        val (c, sumSystem) = parseSum(a, bInvertedPlusOne, bitScheduler)
         system.addAll(sumSystem)
 
         return Pair(c, system)
@@ -291,9 +293,10 @@ object InstructionParser {
     fun parseXor(
         a: Variable.Primitive,
         b: Variable.Primitive,
-        varSize: Int = INT_BITS,
         bitScheduler: BitScheduler
     ): Pair<Variable.Primitive, BooleanSystem> {
+        val varSize = a.bitsArray.size
+
         if (a.constant != null && b.constant != null) {
             val constC = a.constant xor b.constant
 

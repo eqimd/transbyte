@@ -286,11 +286,9 @@ class MethodSat(
                     val a = stack.removeLast()
                     val b = stack.removeLast()
 
-                    val varSize = if (instruction is IADD) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseSum(
                         a as Variable.Primitive,
                         b as Variable.Primitive,
-                        varSize,
                         bitScheduler
                     )
 
@@ -302,11 +300,9 @@ class MethodSat(
                     val a = stack.removeLast()
                     val b = stack.removeLast()
 
-                    val varSize = if (instruction is IMUL) INT_BITS else LONG_BITS
                     val (c, parseSystem) = InstructionParser.parseMultiply(
                         a as Variable.Primitive,
                         b as Variable.Primitive,
-                        varSize,
                         bitScheduler
                     )
 
@@ -325,7 +321,6 @@ class MethodSat(
                     val (c, parseSystem) = InstructionParser.parseSum(
                         local,
                         incr,
-                        INT_BITS,
                         bitScheduler
                     )
 
@@ -337,8 +332,7 @@ class MethodSat(
                     val b = stack.removeLast() as Variable.Primitive
                     val a = stack.removeLast() as Variable.Primitive
 
-                    val varSize = if (instruction is ISUB) INT_BITS else LONG_BITS
-                    val (c, parseSystem) = InstructionParser.parseSubtraction(a, b, varSize, bitScheduler)
+                    val (c, parseSystem) = InstructionParser.parseSubtraction(a, b, bitScheduler)
 
                     system.addAll(parseSystem)
                     stack.addLast(c)
@@ -348,8 +342,7 @@ class MethodSat(
                     val a = stack.removeLast() as Variable.Primitive
                     val b = stack.removeLast() as Variable.Primitive
 
-                    val varSize = if (instruction is IXOR) INT_BITS else LONG_BITS
-                    val (c, parseSystem) = InstructionParser.parseXor(a, b, varSize, bitScheduler)
+                    val (c, parseSystem) = InstructionParser.parseXor(a, b, bitScheduler)
 
                     system.addAll(parseSystem)
                     stack.addLast(c)
