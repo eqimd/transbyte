@@ -1,9 +1,8 @@
 package constants
 
-import boolean_logic.additional.Equality
-import boolean_logic.base.BitVariable
+import boolean_logic.BooleanFormula
 
-typealias BitsArray = Array<BitVariable>
+typealias BitsArray = Array<BooleanFormula.Variable.Bit>
 typealias ConstantPoolIndex = Int
-typealias BooleanSystem = List<Equality>
-typealias MutableBooleanSystem = MutableList<Equality>
+typealias BooleanSystem = List<BooleanFormula.Equality>
+typealias MutableBooleanSystem = MutableList<BooleanFormula.Equality>

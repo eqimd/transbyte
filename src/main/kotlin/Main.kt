@@ -5,9 +5,11 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.default
 import kotlinx.cli.multiple
 import kotlinx.cli.required
+import mu.KotlinLogging
 import org.apache.bcel.classfile.ClassParser
 import org.slf4j.simple.SimpleLogger
 import translator.BytecodeTranslatorImpl
+import java.io.PrintStream
 
 fun main(args: Array<String>) {
     val argParser = ArgParser(Constants.PROGRAM_NAME)
@@ -50,12 +52,14 @@ fun main(args: Array<String>) {
         classParser.parse()
     }
 
-    val bitScheduler = BitSchedulerImpl()
+    val bitScheduler = BitSchedulerImpl(1)
     val translator = BytecodeTranslatorImpl(*classes, bitScheduler = bitScheduler)
 
     val circuit = translator.translate(startClass, methodStartName)
+    circuit.saveInAigerFormat(PrintStream("aiger.txt"))
 
+    val logger = KotlinLogging.logger {}
     for (eq in circuit.system) {
-        println(eq)
+        logger.debug { eq }
     }
 }

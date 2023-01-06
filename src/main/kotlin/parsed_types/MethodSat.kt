@@ -1,15 +1,10 @@
 package parsed_types
 
 import bit_scheduler.BitScheduler
-import boolean_logic.additional.Equality
-import boolean_logic.base.BitVariable
-import boolean_logic.base.Conjunction
-import boolean_logic.base.Disjunction
-import boolean_logic.base.Negated
+import boolean_logic.BooleanFormula
 import constants.BooleanSystem
 import constants.Constants.CYCLE_ITERATIONS
 import constants.Constants.INT_BITS
-import constants.Constants.LONG_BITS
 import constants.MutableBooleanSystem
 import exception.MethodParseException
 import exception.ParseInstructionException
@@ -49,7 +44,7 @@ import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
 import org.apache.bcel.generic.RETURN
 import org.apache.bcel.generic.ReferenceType
-import parsed_types.data.Variable
+import parsed_types.data.VariableSat
 import java.lang.RuntimeException
 import kotlin.math.abs
 
@@ -65,13 +60,13 @@ class MethodSat(
 
     private val logger = KotlinLogging.logger {}
 
-    fun parse(vararg args: Variable): MethodParseReturnValue {
+    fun parse(vararg args: VariableSat): MethodParseReturnValue {
         logger.info { "Parsing method '$name'" }
-        var locals = HashMap<Int, Variable>()
+        var locals = HashMap<Int, VariableSat>()
         parseArgs(locals, *args)
 
-        val stack = ArrayDeque<Variable>()
-        val system: MutableBooleanSystem = emptyList<Equality>().toMutableList()
+        val stack = ArrayDeque<VariableSat>()
+        val system: MutableBooleanSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
         val conditionStack = ArrayDeque<ConditionCopy>()
         val cycleIterationsStack = ArrayDeque<Int>()
@@ -86,8 +81,8 @@ class MethodSat(
             logger.debug { "Parsing instruction '$instruction'" }
             when (instruction) {
                 is IF_ICMPGE -> {
-                    val b = stack.removeLast() as Variable.Primitive
-                    val a = stack.removeLast() as Variable.Primitive
+                    val b = stack.removeLast() as VariableSat.Primitive
+                    val a = stack.removeLast() as VariableSat.Primitive
 
                     val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b, bitScheduler)
                     system.addAll(condSystem)
@@ -119,7 +114,7 @@ class MethodSat(
                     }
                 }
                 is IFLE -> {
-                    val a = stack.removeLast() as Variable.Primitive
+                    val a = stack.removeLast() as VariableSat.Primitive
 
                     // reversed condition, because if original condition is true then interpreter should jump forward
                     val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a, bitScheduler)
@@ -205,7 +200,7 @@ class MethodSat(
 
                 is ASTORE -> {
                     when (val last = stack.removeLast()) {
-                        is Variable.ArrayReference, is Variable.ClassReference -> {
+                        is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
                             locals[instruction.index] = last
                         }
 
@@ -216,9 +211,9 @@ class MethodSat(
                 }
 
                 is BASTORE -> {
-                    val value = stack.removeLast() as Variable.Primitive
-                    val index = stack.removeLast() as Variable.Primitive
-                    val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayOfPrimitives
+                    val value = stack.removeLast() as VariableSat.Primitive
+                    val index = stack.removeLast() as VariableSat.Primitive
+                    val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
 
                     // TODO right now it works only when index constant is known
                     arrayRef.primitives[index.constant!!.toInt()] = value
@@ -226,7 +221,7 @@ class MethodSat(
 
                 is ALOAD -> {
                     when (locals[instruction.index]) {
-                        is Variable.ArrayReference, is Variable.ClassReference -> {
+                        is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
                             stack.addLast(locals[instruction.index]!!)
                         }
 
@@ -237,7 +232,7 @@ class MethodSat(
                 }
 
                 is ILOAD -> {
-                    stack.addLast(locals[instruction.index]!! as Variable.Primitive)
+                    stack.addLast(locals[instruction.index]!! as VariableSat.Primitive)
                 }
 
                 is ICONST -> {
@@ -248,7 +243,7 @@ class MethodSat(
                 }
 
                 is ISTORE -> {
-                    locals[instruction.index] = stack.removeLast() as Variable.Primitive
+                    locals[instruction.index] = stack.removeLast() as VariableSat.Primitive
                 }
 
                 is BIPUSH -> {
@@ -260,19 +255,19 @@ class MethodSat(
 
                 is BALOAD -> {
                     // TODO right now it works only when index is known
-                    val index = stack.removeLast() as Variable.Primitive
-                    val arrayRef = stack.removeLast() as Variable.ArrayReference.ArrayOfPrimitives
+                    val index = stack.removeLast() as VariableSat.Primitive
+                    val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
                     logger.debug { "Index constant: ${index.constant}" }
 
                     stack.addLast(
-                        arrayRef.primitives[index.constant] as Variable
+                        arrayRef.primitives[index.constant] as VariableSat
                     )
                 }
 
                 is NEWARRAY -> {
-                    val size = stack.removeLast() as Variable.Primitive
+                    val size = stack.removeLast() as VariableSat.Primitive
                     val arrayType = instruction.type as ArrayType
-                    val (arrayPrimitives, parseSystem) = Variable.ArrayReference.ArrayOfPrimitives.create(
+                    val (arrayPrimitives, parseSystem) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
                         size = size.constant?.toInt(),
                         primitiveSize = arrayType.basicType.bitsSize,
                         bitScheduler = bitScheduler
@@ -287,8 +282,8 @@ class MethodSat(
                     val b = stack.removeLast()
 
                     val (c, parseSystem) = InstructionParser.parseSum(
-                        a as Variable.Primitive,
-                        b as Variable.Primitive,
+                        a as VariableSat.Primitive,
+                        b as VariableSat.Primitive,
                         bitScheduler
                     )
 
@@ -301,8 +296,8 @@ class MethodSat(
                     val b = stack.removeLast()
 
                     val (c, parseSystem) = InstructionParser.parseMultiply(
-                        a as Variable.Primitive,
-                        b as Variable.Primitive,
+                        a as VariableSat.Primitive,
+                        b as VariableSat.Primitive,
                         bitScheduler
                     )
 
@@ -311,8 +306,8 @@ class MethodSat(
                 }
 
                 is IINC -> {
-                    val local = locals[instruction.index] as Variable.Primitive
-                    val (incr, _) = Variable.Primitive.create(
+                    val local = locals[instruction.index] as VariableSat.Primitive
+                    val (incr, _) = VariableSat.Primitive.create(
                         size = INT_BITS,
                         constant = instruction.increment,
                         bitScheduler = bitScheduler
@@ -329,8 +324,8 @@ class MethodSat(
                 }
 
                 is ISUB, is LSUB -> {
-                    val b = stack.removeLast() as Variable.Primitive
-                    val a = stack.removeLast() as Variable.Primitive
+                    val b = stack.removeLast() as VariableSat.Primitive
+                    val a = stack.removeLast() as VariableSat.Primitive
 
                     val (c, parseSystem) = InstructionParser.parseSubtraction(a, b, bitScheduler)
 
@@ -339,8 +334,8 @@ class MethodSat(
                 }
 
                 is IXOR, is LXOR -> {
-                    val a = stack.removeLast() as Variable.Primitive
-                    val b = stack.removeLast() as Variable.Primitive
+                    val a = stack.removeLast() as VariableSat.Primitive
+                    val b = stack.removeLast() as VariableSat.Primitive
 
                     val (c, parseSystem) = InstructionParser.parseXor(a, b, bitScheduler)
 
@@ -387,7 +382,7 @@ class MethodSat(
                 is IRETURN -> {
                     return MethodParseReturnValue.SystemWithPrimitive(
                         system,
-                        stack.removeLast() as Variable.Primitive
+                        stack.removeLast() as VariableSat.Primitive
                     )
                 }
 
@@ -395,7 +390,7 @@ class MethodSat(
                     if (methodGen.returnType is ArrayType) {
                         return MethodParseReturnValue.SystemWithArray(
                             system,
-                            stack.removeLast() as Variable.ArrayReference
+                            stack.removeLast() as VariableSat.ArrayReference
                         )
                     } else {
                         logger.debug { "Can't return references yet" }
@@ -419,8 +414,8 @@ class MethodSat(
     }
 
     private fun parseArgs(
-        locals: HashMap<Int, Variable>,
-        vararg args: Variable
+        locals: HashMap<Int, VariableSat>,
+        vararg args: VariableSat
     ) {
         if (args.size != methodGen.argumentTypes.size) {
             throw MethodParseException(
@@ -432,26 +427,26 @@ class MethodSat(
         for ((index, arg) in methodGen.argumentTypes.withIndex()) {
             when (arg) {
                 is ArrayType -> {
-                    locals[index] = args[index] as Variable.ArrayReference
+                    locals[index] = args[index] as VariableSat.ArrayReference
                 }
 
                 is ReferenceType -> {
-                    locals[index] = args[index] as Variable.ClassReference
+                    locals[index] = args[index] as VariableSat.ClassReference
                 }
 
                 is BasicType -> {
-                    locals[index] = args[index] as Variable.Primitive
+                    locals[index] = args[index] as VariableSat.Primitive
                 }
             }
         }
     }
 
     private fun parseConditionLocals(
-        locals: Map<Int, Variable>,
+        locals: Map<Int, VariableSat>,
         conditionCopy: ConditionCopy,
-        system: MutableList<Equality>
-    ): HashMap<Int, Variable> {
-        val newLocals = HashMap<Int, Variable>()
+        system: MutableList<BooleanFormula.Equality>
+    ): HashMap<Int, VariableSat> {
+        val newLocals = HashMap<Int, VariableSat>()
 
         for (key in conditionCopy.locals.keys) {
             if (key == conditionCopy.cycleVariableIndex) {
@@ -460,25 +455,25 @@ class MethodSat(
             }
 
             when (val condLocal = conditionCopy.locals[key]) {
-                is Variable.Primitive -> {
-                    val curLocal = locals[key] as Variable.Primitive
+                is VariableSat.Primitive -> {
+                    val curLocal = locals[key] as VariableSat.Primitive
                     if (curLocal.bitsArray.first().bitNumber == condLocal.bitsArray.first().bitNumber) {
                         newLocals[key] = locals[key]!!
                         continue
                     }
 
-                    val newLocal = Variable.Primitive.create(
+                    val newLocal = VariableSat.Primitive.create(
                         size = condLocal.bitsArray.size,
                         bitScheduler = bitScheduler
                     ).first
 
                     newLocals[key] = newLocal
 
-                    val condLocalsSystem = emptyList<Equality>().toMutableList()
+                    val condLocalsSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
                     for (i in 0 until condLocal.bitsArray.size) {
-                        val condTrueBit: BitVariable
-                        val condFalseBit: BitVariable
+                        val condTrueBit: BooleanFormula.Variable.Bit
+                        val condFalseBit: BooleanFormula.Variable.Bit
                         if (conditionCopy.inElseBranch) {
                             condTrueBit = condLocal.bitsArray[i]
                             condFalseBit = curLocal.bitsArray[i]
@@ -487,18 +482,45 @@ class MethodSat(
                             condFalseBit = condLocal.bitsArray[i]
                         }
 
-                        condLocalsSystem.add(
-                            Equality(
-                                newLocal.bitsArray[i],
-                                Disjunction(
-                                    Conjunction(
-                                        condTrueBit,
-                                        conditionCopy.conditionBit
-                                    ),
-                                    Conjunction(
-                                        condFalseBit,
-                                        Negated(conditionCopy.conditionBit)
-                                    )
+                        /* Condition:
+                         *  x == (y and cond) or (z and not cond)
+                         *  == not ( not(y and cond) and not(z and not cond))
+                         *  == not (not A and not B)
+                         *  == not C
+                         *
+                         *  Three new bits: A, B, C
+                         */
+                        val encBits = bitScheduler.getAndShift(3)
+
+                        val lhsBit = encBits[0] // A
+                        val lhsNegatedBit = lhsBit.negated() // not A
+                        val rhsBit = encBits[1] // B
+                        val rhsNegatedBit = rhsBit.negated() // not B
+                        val fullBit = encBits[2] // C
+                        val fullNegatedBit = fullBit.negated()
+
+                        val negatedConditionCopyBit = conditionCopy.conditionBit.negated()
+
+                        condLocalsSystem.addAll(
+                            listOf(
+                                BooleanFormula.Equality(
+                                    lhsBit,
+                                    condTrueBit,
+                                    conditionCopy.conditionBit
+                                ),
+                                BooleanFormula.Equality(
+                                    rhsBit,
+                                    condFalseBit,
+                                    negatedConditionCopyBit
+                                ),
+                                BooleanFormula.Equality(
+                                    fullBit,
+                                    lhsNegatedBit,
+                                    rhsNegatedBit
+                                ),
+                                BooleanFormula.Equality(
+                                    newLocal.bitsArray[i],
+                                    fullNegatedBit
                                 )
                             )
                         )
@@ -506,8 +528,8 @@ class MethodSat(
 
                     system.addAll(condLocalsSystem)
                 }
-                is Variable.ArrayReference.ArrayOfPrimitives -> {
-                    val curLocal = locals[key] as Variable.ArrayReference.ArrayOfPrimitives
+                is VariableSat.ArrayReference.ArrayOfPrimitives -> {
+                    val curLocal = locals[key] as VariableSat.ArrayReference.ArrayOfPrimitives
                     val newLocal = condLocal.copy()
 
                     newLocals[key] = newLocal
@@ -517,18 +539,18 @@ class MethodSat(
                         val curLocalPrim = curLocal.primitives[k]!!
 
                         if (condLocalPrim.bitsArray.first() != curLocalPrim.bitsArray.first()) {
-                            val newPrim = Variable.Primitive.create(
+                            val newPrim = VariableSat.Primitive.create(
                                 size = curLocalPrim.bitsArray.size,
                                 bitScheduler = bitScheduler
                             ).first
 
                             newLocal.primitives[k] = newPrim
 
-                            val condLocalsSystem = emptyList<Equality>().toMutableList()
+                            val condLocalsSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
                             for (i in 0 until condLocalPrim.bitsArray.size) {
-                                val condTrueBit: BitVariable
-                                val condFalseBit: BitVariable
+                                val condTrueBit: BooleanFormula.Variable.Bit
+                                val condFalseBit: BooleanFormula.Variable.Bit
                                 if (conditionCopy.inElseBranch) {
                                     condTrueBit = condLocalPrim.bitsArray[i]
                                     condFalseBit = curLocalPrim.bitsArray[i]
@@ -537,18 +559,38 @@ class MethodSat(
                                     condFalseBit = condLocalPrim.bitsArray[i]
                                 }
 
-                                condLocalsSystem.add(
-                                    Equality(
-                                        newPrim.bitsArray[i],
-                                        Disjunction(
-                                            Conjunction(
-                                                condTrueBit,
-                                                conditionCopy.conditionBit
-                                            ),
-                                            Conjunction(
-                                                condFalseBit,
-                                                Negated(conditionCopy.conditionBit)
-                                            )
+                                // Same logic as above
+                                val encBits = bitScheduler.getAndShift(3)
+
+                                val lhsBit = encBits[0] // A
+                                val lhsNegatedBit = lhsBit.negated() // not A
+                                val rhsBit = encBits[1] // B
+                                val rhsNegatedBit = rhsBit.negated() // not B
+                                val fullBit = encBits[2] // C
+                                val fullNegatedBit = fullBit.negated()
+
+                                val negatedConditionCopyBit = conditionCopy.conditionBit.negated()
+
+                                condLocalsSystem.addAll(
+                                    listOf(
+                                        BooleanFormula.Equality(
+                                            lhsBit,
+                                            condTrueBit,
+                                            conditionCopy.conditionBit
+                                        ),
+                                        BooleanFormula.Equality(
+                                            rhsBit,
+                                            condFalseBit,
+                                            negatedConditionCopyBit
+                                        ),
+                                        BooleanFormula.Equality(
+                                            fullBit,
+                                            lhsNegatedBit,
+                                            rhsNegatedBit
+                                        ),
+                                        BooleanFormula.Equality(
+                                            newPrim.bitsArray[i],
+                                            fullNegatedBit
                                         )
                                     )
                                 )
@@ -567,12 +609,12 @@ class MethodSat(
         return newLocals
     }
 
-    private fun deepCopyLocals(locals: HashMap<Int, Variable>): HashMap<Int, Variable> {
+    private fun deepCopyLocals(locals: HashMap<Int, VariableSat>): HashMap<Int, VariableSat> {
         val newLocals = HashMap(locals)
 
         for (k in locals.keys) {
-            if (locals[k] is Variable.ArrayReference.ArrayOfPrimitives) {
-                val castedLocal = newLocals[k] as Variable.ArrayReference.ArrayOfPrimitives
+            if (locals[k] is VariableSat.ArrayReference.ArrayOfPrimitives) {
+                val castedLocal = newLocals[k] as VariableSat.ArrayReference.ArrayOfPrimitives
                 val copyLocal = castedLocal.copy()
                 newLocals[k] = copyLocal
             }
@@ -584,18 +626,18 @@ class MethodSat(
     sealed interface MethodParseReturnValue {
         class SystemOnly(val system: BooleanSystem) : MethodParseReturnValue
 
-        class SystemWithPrimitive(val system: BooleanSystem, val primitive: Variable.Primitive) :
+        class SystemWithPrimitive(val system: BooleanSystem, val primitive: VariableSat.Primitive) :
             MethodParseReturnValue
 
-        class SystemWithArray(val system: BooleanSystem, val arrayReference: Variable.ArrayReference) :
+        class SystemWithArray(val system: BooleanSystem, val arrayReference: VariableSat.ArrayReference) :
             MethodParseReturnValue
 
-        class SystemWithReference(val system: BooleanSystem, val reference: Variable.ClassReference)
+        class SystemWithReference(val system: BooleanSystem, val reference: VariableSat.ClassReference)
     }
 
     data class ConditionCopy(
-        val conditionBit: BitVariable,
-        val locals: HashMap<Int, Variable>,
+        val conditionBit: BooleanFormula.Variable.Bit,
+        val locals: HashMap<Int, VariableSat>,
         val instructionPosition: Int,
         val inElseBranch: Boolean = false,
         var cycleVariableIndex: Int? = null

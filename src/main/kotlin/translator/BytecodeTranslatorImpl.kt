@@ -1,7 +1,7 @@
 package translator
 
 import bit_scheduler.BitScheduler
-import boolean_logic.additional.Equality
+import boolean_logic.BooleanFormula
 import constants.Constants
 import extension.bitsSize
 import mu.KotlinLogging
@@ -11,7 +11,7 @@ import org.apache.bcel.generic.BasicType
 import parsed_types.ClassSat
 import parsed_types.MethodSat
 import parsed_types.data.EncodingCircuit
-import parsed_types.data.Variable
+import parsed_types.data.VariableSat
 import java.lang.RuntimeException
 
 class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler: BitScheduler) : Translator {
@@ -26,20 +26,20 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
     override fun translate(
         className: String,
         methodDescription: String,
-        vararg args: Variable
+        vararg args: VariableSat
     ): EncodingCircuit {
         logger.info { "Translating method '$methodDescription' of class '$className'" }
         val classSat = classSatMap[className]!!
         val methodSat = classSat.getMethodByDescription(methodDescription)
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")
 
-        val circuitSystem = emptyList<Equality>().toMutableList()
+        val circuitSystem = emptyList<BooleanFormula.Equality>().toMutableList()
         val methodSatArgs = if (args.isEmpty()) {
             Array(methodSat.methodGen.argumentTypes.size) { i ->
                 when (val type = methodSat.methodGen.argumentTypes[i]) {
                     is ArrayType -> {
                         // TODO parse nested arrays
-                        val (arg, _) = Variable.ArrayReference.ArrayOfPrimitives.create(
+                        val (arg, _) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
                             size = Constants.ARRAY_INPUT_SIZE,
                             primitiveSize = type.basicType.bitsSize,
                             bitScheduler = bitScheduler
@@ -48,7 +48,7 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
                         arg
                     }
                     is BasicType -> {
-                        val (arg, _) = Variable.Primitive.create(
+                        val (arg, _) = VariableSat.Primitive.create(
                             bitScheduler = bitScheduler,
                             size = type.bitsSize
                         )

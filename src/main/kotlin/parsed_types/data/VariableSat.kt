@@ -1,25 +1,27 @@
 package parsed_types.data
 
 import bit_scheduler.BitScheduler
-import boolean_logic.additional.Equality
-import boolean_logic.base.BitValue
+import boolean_logic.BooleanFormula
 import constants.BitsArray
 import constants.BooleanSystem
 import parsed_types.ClassSat
 
-sealed interface Variable {
-    class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : Variable {
+sealed interface VariableSat {
+    class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : VariableSat {
         companion object {
             fun create(size: Int, constant: Number? = null, bitScheduler: BitScheduler): Pair<Primitive, BooleanSystem> {
                 val bitsArray = bitScheduler.getAndShift(size)
                 val primitive = Primitive(bitsArray, constant)
 
-                val parseSystem: List<Equality>
+                val parseSystem: List<BooleanFormula.Equality>
                 if (constant != null) {
                     parseSystem = List(size) { index ->
-                        Equality(
+                        BooleanFormula.Equality(
                             bitsArray[index],
-                            BitValue.getByBoolean((constant.toLong().shr(index).and(1L) != 0L))
+                            BooleanFormula
+                                .Variable
+                                .Constant
+                                .getByBoolean((constant.toLong().shr(index).and(1L) != 0L))
                         )
                     }
                 } else {
@@ -31,14 +33,14 @@ sealed interface Variable {
         }
     }
 
-    sealed class ArrayReference(val size: Int? = null) : Variable {
+    sealed class ArrayReference(val size: Int? = null) : VariableSat {
         class ArrayOfPrimitives private constructor(size: Int?, val primitiveSize: Int) : ArrayReference(size) {
             var primitives = HashMap<Int, Primitive>()
 
             companion object {
                 fun create(size: Int? = null, primitiveSize: Int, bitScheduler: BitScheduler): Pair<ArrayReference, BooleanSystem> {
                     val arrayOfPrimitives = ArrayOfPrimitives(size, primitiveSize)
-                    val parseSystem = emptyList<Equality>().toMutableList()
+                    val parseSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
                     if (size != null) {
                         for (i in 0 until size) {
@@ -71,5 +73,5 @@ sealed interface Variable {
         }
     }
 
-    class ClassReference private constructor(val classSat: ClassSat) : Variable
+    class ClassReference private constructor(val classSat: ClassSat) : VariableSat
 }

@@ -13,14 +13,14 @@ import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic.BasicType
 import org.apache.bcel.generic.ConstantPoolGen
 import parsed_types.data.MethodRefNames
-import parsed_types.data.Variable
+import parsed_types.data.VariableSat
 
 class ClassSat(
     val clazz: JavaClass,
     private val bitScheduler: BitScheduler,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
-    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, Variable.Primitive>()
+    private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, VariableSat.Primitive>()
 
     // TODO decide how to add the field below later
     // private val classTypesBitsMap
@@ -47,7 +47,7 @@ class ClassSat(
                     val type = BasicType.getType(utf)
 
                     // TODO do we need to add system with default zero value?
-                    val (primitive, _) = Variable.Primitive.create(
+                    val (primitive, _) = VariableSat.Primitive.create(
                         size = type.bitsSize,
                         bitScheduler = bitScheduler
                     )
