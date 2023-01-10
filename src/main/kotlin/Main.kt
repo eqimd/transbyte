@@ -42,6 +42,12 @@ fun main(args: Array<String>) {
         description = "Name of the method to start translation with"
     ).default(Constants.TRANSLATOR_START_FUNCTION_NAME)
 
+    val saveFilename by argParser.option(
+        ArgType.String,
+        fullName = "output",
+        description = "Filename for output"
+    )
+
     argParser.parse(args)
 
     if (isDebug) {
@@ -56,7 +62,8 @@ fun main(args: Array<String>) {
     val translator = BytecodeTranslatorImpl(*classes, bitScheduler = bitScheduler)
 
     val circuit = translator.translate(startClass, methodStartName)
-    circuit.saveInAigerFormat(PrintStream("aiger.txt"))
+    val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)
+    circuit.saveInAigerFormat(outStream)
 
     val logger = KotlinLogging.logger {}
     for (eq in circuit.system) {

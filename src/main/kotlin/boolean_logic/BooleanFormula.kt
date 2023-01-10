@@ -29,14 +29,8 @@ sealed interface BooleanFormula {
         }
     }
 
-    class Equality(val bit: Variable.Bit, conjFirst: Variable, vararg conjAnother: Variable) : BooleanFormula {
-
-        val conjuncts: List<Variable>
-
-        init {
-            this.conjuncts = listOf(conjFirst, *conjAnother)
-        }
+    class Equality(val bit: Variable.Bit, val conjFirst: Variable, val conjSecond: Variable? = null) : BooleanFormula {
         override fun toString(): String =
-            "$bit ≡ ${conjuncts.joinToString(separator = " · ")}"
+            "$bit ≡ $conjFirst ${if (conjSecond != null) " · $conjSecond" else ""}"
     }
 }

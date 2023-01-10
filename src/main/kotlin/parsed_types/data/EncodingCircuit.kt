@@ -21,8 +21,6 @@ data class EncodingCircuit(val input: List<VariableSat>, val output: VariableSat
                 }
             }
         }
-        // TODO what is this?
-        val numberOfLatches = 0
         val numberOfOutputs = when (output) {
             null -> {
                 0
@@ -38,7 +36,48 @@ data class EncodingCircuit(val input: List<VariableSat>, val output: VariableSat
             }
         }
 
-        val numberOfAndGates = system.size
+        val latches = emptyList<String>().toMutableList()
+        val andGates = emptyList<String>().toMutableList()
+
+        for (eq in system) {
+            val aigBit = eq.bit.bitNumber * 2
+
+            if (eq.conjSecond == null) {
+                val secondBit = when (val conj = eq.conjFirst) {
+                    is BooleanFormula.Variable.Bit -> {
+                        conj.bitNumber * 2 + conj.isNegated.toInt()
+                    }
+                    is BooleanFormula.Variable.Constant -> {
+                        conj.value.toInt()
+                    }
+                }
+
+                latches.add("$aigBit $secondBit")
+            } else {
+                val firstBit = when (val conj = eq.conjFirst) {
+                    is BooleanFormula.Variable.Bit -> {
+                        conj.bitNumber * 2 + conj.isNegated.toInt()
+                    }
+                    is BooleanFormula.Variable.Constant -> {
+                        conj.value.toInt()
+                    }
+                }
+
+                val secondBit = when (val conj = eq.conjSecond!!) {
+                    is BooleanFormula.Variable.Bit -> {
+                        conj.bitNumber * 2 + conj.isNegated.toInt()
+                    }
+                    is BooleanFormula.Variable.Constant -> {
+                        conj.value.toInt()
+                    }
+                }
+
+                andGates.add("$aigBit $firstBit $secondBit")
+            }
+        }
+
+        val numberOfLatches = latches.size
+        val numberOfAndGates = andGates.size
 
         printStream.println(
             "aag $maximumVariableIndex $numberOfInputs $numberOfLatches $numberOfOutputs $numberOfAndGates"
@@ -64,6 +103,10 @@ data class EncodingCircuit(val input: List<VariableSat>, val output: VariableSat
             }
         }
 
+        for (latch in latches) {
+            printStream.println(latch)
+        }
+
         when (output) {
             is VariableSat.Primitive -> {
                 output.bitsArray.forEach {
@@ -82,22 +125,8 @@ data class EncodingCircuit(val input: List<VariableSat>, val output: VariableSat
             }
         }
 
-        for (eq in system) {
-            val aigBit = eq.bit.bitNumber * 2
-            printStream.print("$aigBit ")
-
-            eq.conjuncts.forEach {
-                when (it) {
-                    is BooleanFormula.Variable.Bit -> {
-                        val printBit = it.bitNumber * 2 + it.isNegated.toInt()
-                        printStream.print("$printBit ")
-                    }
-                    is BooleanFormula.Variable.Constant -> {
-                        printStream.print("${it.value.toInt()} ")
-                    }
-                }
-            }
-            printStream.println()
+        for (andGate in andGates) {
+            printStream.println(andGate)
         }
     }
 }

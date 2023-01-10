@@ -111,14 +111,16 @@ object InstructionParser {
         val bitYZ = majBits[2]
         val allBit = majBits[3]
 
+        val bitXyXzNeg = bitScheduler.getAndShift(1).first()
+
         val system = listOf(
             BooleanFormula.Equality(bitXY, x, y),
             BooleanFormula.Equality(bitXZ, x, z),
             BooleanFormula.Equality(bitYZ, y, z),
+            BooleanFormula.Equality(bitXyXzNeg, bitXY.negated(), bitXZ.negated()),
             BooleanFormula.Equality(
                 allBit,
-                bitXY.negated(),
-                bitXZ.negated(),
+                bitXyXzNeg,
                 bitYZ.negated()
             )
         )
