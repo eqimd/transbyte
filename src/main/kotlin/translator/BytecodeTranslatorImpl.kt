@@ -1,8 +1,10 @@
 package translator
 
 import bit_scheduler.BitScheduler
+import bit_scheduler.BitSchedulerImpl
 import boolean_logic.BooleanFormula
 import constants.Constants
+import constants.GlobalSettings
 import extension.bitsSize
 import mu.KotlinLogging
 import org.apache.bcel.classfile.JavaClass
@@ -14,12 +16,17 @@ import parsed_types.data.EncodingCircuit
 import parsed_types.data.VariableSat
 import java.lang.RuntimeException
 
-class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler: BitScheduler) : Translator {
+class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
     private val classSatMap = HashMap<String, ClassSat>()
     private val logger = KotlinLogging.logger {}
+
+    private val bitScheduler: BitScheduler = BitSchedulerImpl(1)
+    private val primitiveConstants = HashMap<Number, VariableSat.Primitive>()
     init {
+        GlobalSettings.setupSettings(bitScheduler, primitiveConstants)
+
         for (clazz in classes) {
-            classSatMap[clazz.className] = ClassSat(clazz, bitScheduler)
+            classSatMap[clazz.className] = ClassSat(clazz)
         }
     }
 
@@ -28,7 +35,7 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
         methodDescription: String,
         vararg args: VariableSat
     ): EncodingCircuit {
-        logger.info { "Translating method '$methodDescription' of class '$className'" }
+        logger.debug { "Translating method '$methodDescription' of class '$className'" }
         val classSat = classSatMap[className]!!
         val methodSat = classSat.getMethodByDescription(methodDescription)
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")
@@ -42,14 +49,12 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass, private val bitScheduler
                         val (arg, _) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
                             size = Constants.ARRAY_INPUT_SIZE,
                             primitiveSize = type.basicType.bitsSize,
-                            bitScheduler = bitScheduler
                         )
 
                         arg
                     }
                     is BasicType -> {
                         val (arg, _) = VariableSat.Primitive.create(
-                            bitScheduler = bitScheduler,
                             size = type.bitsSize
                         )
                         arg

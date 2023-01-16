@@ -4,7 +4,7 @@ import bit_scheduler.BitScheduler
 import boolean_logic.BooleanFormula
 import constants.BooleanSystem
 import constants.Constants.CYCLE_ITERATIONS
-import constants.Constants.INT_BITS
+import constants.GlobalSettings
 import constants.MutableBooleanSystem
 import exception.MethodParseException
 import exception.ParseInstructionException
@@ -22,6 +22,7 @@ import org.apache.bcel.generic.BIPUSH
 import org.apache.bcel.generic.BasicType
 import org.apache.bcel.generic.BranchHandle
 import org.apache.bcel.generic.ConstantPoolGen
+import org.apache.bcel.generic.ConstantPushInstruction
 import org.apache.bcel.generic.GOTO
 import org.apache.bcel.generic.IADD
 import org.apache.bcel.generic.ICONST
@@ -52,8 +53,10 @@ class MethodSat(
     private val classSat: ClassSat,
     val method: Method,
     cpGen: ConstantPoolGen,
-    private val bitScheduler: BitScheduler,
 ) {
+    private val bitScheduler: BitScheduler = GlobalSettings.bitScheduler
+    private val primitiveConstants = GlobalSettings.primitiveConstants
+
     val methodGen = MethodGen(method, classSat.clazz.className, cpGen)
 
     val name: String = methodGen.name
@@ -61,7 +64,7 @@ class MethodSat(
     private val logger = KotlinLogging.logger {}
 
     fun parse(vararg args: VariableSat): MethodParseReturnValue {
-        logger.info { "Parsing method '$name'" }
+        logger.debug { "Parsing method '$name'" }
         var locals = HashMap<Int, VariableSat>()
         parseArgs(locals, *args)
 
@@ -78,13 +81,14 @@ class MethodSat(
             }
 
             val instruction = methodGen.instructionList.instructions[instrIndex]
+            logger.debug { "Bit scheduler positions: ${bitScheduler.currentPosition}" }
             logger.debug { "Parsing instruction '$instruction'" }
             when (instruction) {
                 is IF_ICMPGE -> {
                     val b = stack.removeLast() as VariableSat.Primitive
                     val a = stack.removeLast() as VariableSat.Primitive
 
-                    val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b, bitScheduler)
+                    val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b)
                     system.addAll(condSystem)
 
                     // TODO do we need this optimisation?
@@ -197,7 +201,6 @@ class MethodSat(
                         locals = condCopy.locals
                     }
                 }
-
                 is ASTORE -> {
                     when (val last = stack.removeLast()) {
                         is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
@@ -209,7 +212,6 @@ class MethodSat(
                         }
                     }
                 }
-
                 is BASTORE -> {
                     val value = stack.removeLast() as VariableSat.Primitive
                     val index = stack.removeLast() as VariableSat.Primitive
@@ -218,7 +220,6 @@ class MethodSat(
                     // TODO right now it works only when index constant is known
                     arrayRef.primitives[index.constant!!.toInt()] = value
                 }
-
                 is ALOAD -> {
                     when (locals[instruction.index]) {
                         is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
@@ -230,29 +231,19 @@ class MethodSat(
                         }
                     }
                 }
-
                 is ILOAD -> {
                     stack.addLast(locals[instruction.index]!! as VariableSat.Primitive)
                 }
-
-                is ICONST -> {
-                    val (parsedBitsArray, parsedSystem) = InstructionParser.parsePush(instruction.value, bitScheduler)
+                is ICONST, is BIPUSH -> {
+                    instruction as ConstantPushInstruction
+                    val (parsedBitsArray, parsedSystem) = InstructionParser.parsePush(instruction.value)
 
                     stack.addLast(parsedBitsArray)
                     system.addAll(parsedSystem)
                 }
-
                 is ISTORE -> {
                     locals[instruction.index] = stack.removeLast() as VariableSat.Primitive
                 }
-
-                is BIPUSH -> {
-                    val (parsedBitsArray, parsedSystem) = InstructionParser.parsePush(instruction.value, bitScheduler)
-
-                    stack.addLast(parsedBitsArray)
-                    system.addAll(parsedSystem)
-                }
-
                 is BALOAD -> {
                     // TODO right now it works only when index is known
                     val index = stack.removeLast() as VariableSat.Primitive
@@ -263,42 +254,36 @@ class MethodSat(
                         arrayRef.primitives[index.constant] as VariableSat
                     )
                 }
-
                 is NEWARRAY -> {
                     val size = stack.removeLast() as VariableSat.Primitive
                     val arrayType = instruction.type as ArrayType
                     val (arrayPrimitives, parseSystem) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
                         size = size.constant?.toInt(),
                         primitiveSize = arrayType.basicType.bitsSize,
-                        bitScheduler = bitScheduler
                     )
                     system.addAll(parseSystem)
 
                     stack.addLast(arrayPrimitives)
                 }
-
                 is IADD, is LADD -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
 
                     val (c, parseSystem) = InstructionParser.parseSum(
                         a as VariableSat.Primitive,
-                        b as VariableSat.Primitive,
-                        bitScheduler
+                        b as VariableSat.Primitive
                     )
 
                     stack.addLast(c)
                     system.addAll(parseSystem)
                 }
-
                 is IMUL, is LMUL -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
 
                     val (c, parseSystem) = InstructionParser.parseMultiply(
                         a as VariableSat.Primitive,
-                        b as VariableSat.Primitive,
-                        bitScheduler
+                        b as VariableSat.Primitive
                     )
 
                     stack.addLast(c)
@@ -307,16 +292,11 @@ class MethodSat(
 
                 is IINC -> {
                     val local = locals[instruction.index] as VariableSat.Primitive
-                    val (incr, _) = VariableSat.Primitive.create(
-                        size = INT_BITS,
-                        constant = instruction.increment,
-                        bitScheduler = bitScheduler
-                    )
+                    val incr = InstructionParser.parsePush(instruction.increment).first
 
                     val (c, parseSystem) = InstructionParser.parseSum(
                         local,
-                        incr,
-                        bitScheduler
+                        incr
                     )
 
                     locals[instruction.index] = c
@@ -327,7 +307,7 @@ class MethodSat(
                     val b = stack.removeLast() as VariableSat.Primitive
                     val a = stack.removeLast() as VariableSat.Primitive
 
-                    val (c, parseSystem) = InstructionParser.parseSubtraction(a, b, bitScheduler)
+                    val (c, parseSystem) = InstructionParser.parseSubtraction(a, b)
 
                     system.addAll(parseSystem)
                     stack.addLast(c)
@@ -337,7 +317,7 @@ class MethodSat(
                     val a = stack.removeLast() as VariableSat.Primitive
                     val b = stack.removeLast() as VariableSat.Primitive
 
-                    val (c, parseSystem) = InstructionParser.parseXor(a, b, bitScheduler)
+                    val (c, parseSystem) = InstructionParser.parseXor(a, b)
 
                     system.addAll(parseSystem)
                     stack.addLast(c)
@@ -463,8 +443,7 @@ class MethodSat(
                     }
 
                     val newLocal = VariableSat.Primitive.create(
-                        size = condLocal.bitsArray.size,
-                        bitScheduler = bitScheduler
+                        size = condLocal.bitsArray.size
                     ).first
 
                     newLocals[key] = newLocal
@@ -540,8 +519,7 @@ class MethodSat(
 
                         if (condLocalPrim.bitsArray.first() != curLocalPrim.bitsArray.first()) {
                             val newPrim = VariableSat.Primitive.create(
-                                size = curLocalPrim.bitsArray.size,
-                                bitScheduler = bitScheduler
+                                size = curLocalPrim.bitsArray.size
                             ).first
 
                             newLocal.primitives[k] = newPrim

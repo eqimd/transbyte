@@ -4,6 +4,7 @@ import bit_scheduler.BitScheduler
 import boolean_logic.BooleanFormula
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
+import constants.GlobalSettings
 import extension.minus
 import extension.plus
 import extension.times
@@ -15,19 +16,27 @@ object InstructionParser {
     fun parseSum(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<VariableSat.Primitive, BooleanSystem> {
+        val bitScheduler = GlobalSettings.bitScheduler
+
         val varSize = a.bitsArray.size
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant + b.constant
 
+            val primitiveConstants = GlobalSettings.primitiveConstants
+
+            if (primitiveConstants.containsKey(constC)) {
+                return Pair(primitiveConstants[constC]!!, emptyList())
+            }
+
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
-                bitScheduler = bitScheduler
             )
+
+            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -38,11 +47,10 @@ object InstructionParser {
         // c = a + b
         val (cPrim, _) = VariableSat.Primitive.create(
             size = varSize,
-            bitScheduler = bitScheduler
         )
         val c = cPrim.bitsArray
 
-        val (xorBit, xorSystem) = parseXorBits(a.bitsArray[0], b.bitsArray[0], bitScheduler)
+        val (xorBit, xorSystem) = parseXorBits(a.bitsArray[0], b.bitsArray[0])
         system.addAll(xorSystem)
 
         val c0 = BooleanFormula.Equality(
@@ -61,13 +69,13 @@ object InstructionParser {
         system.add(p0)
 
         for (i in 1 until varSize) {
-            val (majBit, majSys) = parseMajorityBits(a.bitsArray[i], b.bitsArray[i], pPrev, bitScheduler)
+            val (majBit, majSys) = parseMajorityBits(a.bitsArray[i], b.bitsArray[i], pPrev)
             system.addAll(majSys)
 
-            val (xorInnerAiBi, xorInnerSys) = parseXorBits(a.bitsArray[i], b.bitsArray[i], bitScheduler)
+            val (xorInnerAiBi, xorInnerSys) = parseXorBits(a.bitsArray[i], b.bitsArray[i])
             system.addAll(xorInnerSys)
 
-            val (xorWithPrev, xorPrevSys) = parseXorBits(xorInnerAiBi, pPrev, bitScheduler)
+            val (xorWithPrev, xorPrevSys) = parseXorBits(xorInnerAiBi, pPrev)
             system.addAll(xorPrevSys)
 
             pPrev = pArr[i]
@@ -98,12 +106,13 @@ object InstructionParser {
         x: BooleanFormula.Variable.Bit,
         y: BooleanFormula.Variable.Bit,
         z: BooleanFormula.Variable.Bit,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         /*
          * Majority(x, y, z) = (x and y) or (x and z) or (y and z)
          * == not(not(x and y) and not(x and z) and not (y and z))
          */
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val majBits = bitScheduler.getAndShift(4)
         val bitXY = majBits[0]
@@ -132,13 +141,14 @@ object InstructionParser {
     fun parseDisjunctionBits(
         x: BooleanFormula.Variable.Bit,
         y: BooleanFormula.Variable.Bit,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         /*
          * X or Y == not(not X and not Y)
          * == not A
          * One new bit: A
          */
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val disjBit = bitScheduler.getAndShift(1).first() // A
 
@@ -157,11 +167,12 @@ object InstructionParser {
     fun parseEqualityBits(
         x: BooleanFormula.Variable.Bit,
         y: BooleanFormula.Variable.Bit,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         /*
          * Equality(x, y) = (x and y) or (not x and not y)
          */
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val conjBits = bitScheduler.getAndShift(2)
         val lhsBit = conjBits[0]
@@ -172,7 +183,7 @@ object InstructionParser {
             BooleanFormula.Equality(rhsBit, x.negated(), y.negated())
         ).toMutableList()
 
-        val (disjBit, disjSys) = parseDisjunctionBits(lhsBit, rhsBit, bitScheduler)
+        val (disjBit, disjSys) = parseDisjunctionBits(lhsBit, rhsBit)
         system.addAll(disjSys)
 
         return Pair(disjBit, system)
@@ -182,19 +193,27 @@ object InstructionParser {
     fun parseMultiply(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<VariableSat.Primitive, BooleanSystem> {
+        val bitScheduler = GlobalSettings.bitScheduler
+
         val varSize = a.bitsArray.size
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant * b.constant
 
+            val primitiveConstants = GlobalSettings.primitiveConstants
+
+            if (primitiveConstants.containsKey(constC)) {
+                return Pair(primitiveConstants[constC]!!, emptyList())
+            }
+
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
-                bitScheduler = bitScheduler
             )
+
+            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -205,7 +224,6 @@ object InstructionParser {
         // c = a*b
         val (cPrim, _) = VariableSat.Primitive.create(
             size = varSize,
-            bitScheduler = bitScheduler
         )
         val c = cPrim.bitsArray
 
@@ -237,7 +255,7 @@ object InstructionParser {
         }
 
         for (i in 0 until varSize - 1) {
-            val (xor, xorSys) = parseXorBits(tempMult[0][i + 1], tempMult[i + 1][0], bitScheduler)
+            val (xor, xorSys) = parseXorBits(tempMult[0][i + 1], tempMult[i + 1][0])
             system.addAll(xorSys)
             system.add(
                 BooleanFormula.Equality(
@@ -259,15 +277,13 @@ object InstructionParser {
             for (j in 0 until varSize - 1) {
                 val (xorInnerBit, xorInnerSys) = parseXorBits(
                     sumResMult[i][j + 1],
-                    tempMult[j + 1][i + 1],
-                    bitScheduler
+                    tempMult[j + 1][i + 1]
                 )
                 system.addAll(xorInnerSys)
 
                 val (xorOuterBit, xorOuterSys) = parseXorBits(
                     carryMult[i][j],
-                    xorInnerBit,
-                    bitScheduler
+                    xorInnerBit
                 )
                 system.addAll(xorOuterSys)
 
@@ -287,10 +303,10 @@ object InstructionParser {
                     )
                 )
 
-                val (disjInnerBit, disjInnerSys) = parseDisjunctionBits(conj2, conj3, bitScheduler)
+                val (disjInnerBit, disjInnerSys) = parseDisjunctionBits(conj2, conj3)
                 system.addAll(disjInnerSys)
 
-                val (disjOuterBit, disjOuterSys) = parseDisjunctionBits(conj1, disjInnerBit, bitScheduler)
+                val (disjOuterBit, disjOuterSys) = parseDisjunctionBits(conj1, disjInnerBit)
                 system.addAll(disjOuterSys)
                 system.add(
                     BooleanFormula.Equality(
@@ -329,7 +345,6 @@ object InstructionParser {
     fun parseSubtraction(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<VariableSat.Primitive, BooleanSystem> {
         // a - b
 
@@ -338,12 +353,19 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant - b.constant
 
+            val primitiveConstants = GlobalSettings.primitiveConstants
+
+            if (primitiveConstants.containsKey(constC)) {
+                return Pair(primitiveConstants[constC]!!, emptyList())
+            }
+
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
-                bitScheduler = bitScheduler
             )
+
+            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -358,7 +380,6 @@ object InstructionParser {
         // bInverted = ~b
         val (bInverted, _) = VariableSat.Primitive.create(
             size = b.bitsArray.size,
-            bitScheduler = bitScheduler
         )
 
         for (i in 0 until b.bitsArray.size) {
@@ -370,13 +391,13 @@ object InstructionParser {
             )
         }
 
-        val (one, oneSystem) = parsePush(1, bitScheduler)
+        val (one, oneSystem) = parsePush(1)
         system.addAll(oneSystem)
 
-        val (bInvertedPlusOne, plusOneSystem) = parseSum(bInverted, one, bitScheduler)
+        val (bInvertedPlusOne, plusOneSystem) = parseSum(bInverted, one)
         system.addAll(plusOneSystem)
 
-        val (c, sumSystem) = parseSum(a, bInvertedPlusOne, bitScheduler)
+        val (c, sumSystem) = parseSum(a, bInvertedPlusOne)
         system.addAll(sumSystem)
 
         return Pair(c, system)
@@ -386,7 +407,6 @@ object InstructionParser {
     fun parseXorBits(
         x: BooleanFormula.Variable.Bit,
         y: BooleanFormula.Variable.Bit,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         /*
          * X xor Y == (X and not Y) or (not X and Y)
@@ -395,6 +415,8 @@ object InstructionParser {
          * == not C
          * Three new bits: A, B, C
          */
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val xorBits = bitScheduler.getAndShift(3)
 
@@ -432,19 +454,25 @@ object InstructionParser {
     fun parseXor(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<VariableSat.Primitive, BooleanSystem> {
         val varSize = a.bitsArray.size
 
         if (a.constant != null && b.constant != null) {
             val constC = a.constant xor b.constant
 
+            val primitiveConstants = GlobalSettings.primitiveConstants
+
+            if (primitiveConstants.containsKey(constC)) {
+                return Pair(primitiveConstants[constC]!!, emptyList())
+            }
+
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
-                bitScheduler = bitScheduler
             )
+
+            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -453,12 +481,11 @@ object InstructionParser {
 
         val (c, _) = VariableSat.Primitive.create(
             size = varSize,
-            bitScheduler = bitScheduler
         )
         val cArr = c.bitsArray
 
         for (i in 0 until a.bitsArray.size) {
-            val (xor, xorSys) = parseXorBits(a.bitsArray[i], b.bitsArray[i], bitScheduler)
+            val (xor, xorSys) = parseXorBits(a.bitsArray[i], b.bitsArray[i])
             system.addAll(xorSys)
             system.add(
                 BooleanFormula.Equality(
@@ -472,23 +499,30 @@ object InstructionParser {
     }
 
     @JvmStatic
-    fun parsePush(value: Number, bitScheduler: BitScheduler): Pair<VariableSat.Primitive, BooleanSystem> {
-        // TODO add varSize for longs
+    fun parsePush(value: Number): Pair<VariableSat.Primitive, BooleanSystem> {
+        val primitiveConstants = GlobalSettings.primitiveConstants
+        if (primitiveConstants.containsKey(value)) {
+            return Pair(primitiveConstants[value]!!, emptyList())
+        }
 
-        return VariableSat.Primitive.create(
+        val (primitive, system) = VariableSat.Primitive.create(
             size = INT_BITS,
             constant = value,
-            bitScheduler = bitScheduler
         )
+
+        primitiveConstants[value] = primitive
+
+        return Pair(primitive, system)
     }
 
     @JvmStatic
     fun parseLessCondition(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         // Condition: a < b
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
         // TODO maybe .constant.toInt() is enough
@@ -515,7 +549,7 @@ object InstructionParser {
 
         // TODO works when a.bitsArray.size == b.bitsArray.size
         for (i in 1 until a.bitsArray.size) {
-            val (eqBit, eqSys) = parseEqualityBits(b.bitsArray[i], a.bitsArray[i], bitScheduler)
+            val (eqBit, eqSys) = parseEqualityBits(b.bitsArray[i], a.bitsArray[i])
             system.addAll(eqSys)
             val conjBits = bitScheduler.getAndShift(2)
             val conj1 = conjBits[0]
@@ -527,7 +561,7 @@ object InstructionParser {
                 )
             )
 
-            val (disjBit, disjSys) = parseDisjunctionBits(conj1, conj2, bitScheduler)
+            val (disjBit, disjSys) = parseDisjunctionBits(conj1, conj2)
             system.addAll(disjSys)
             system.add(
                 BooleanFormula.Equality(
@@ -544,9 +578,10 @@ object InstructionParser {
     fun parseLessOrEqualCondition(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-        bitScheduler: BitScheduler
     ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
         // Condition: a <= b
+
+        val bitScheduler = GlobalSettings.bitScheduler
 
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
         // TODO maybe .constant.toInt() is enough
@@ -568,7 +603,7 @@ object InstructionParser {
             BooleanFormula.Equality(conjAB, a.bitsArray.first(), b.bitsArray.first())
         )
 
-        val (disjBitFirst, disjSysFirst) = parseDisjunctionBits(a.bitsArray.first().negated(), conjAB, bitScheduler)
+        val (disjBitFirst, disjSysFirst) = parseDisjunctionBits(a.bitsArray.first().negated(), conjAB)
         system.addAll(disjSysFirst)
         system.add(
             BooleanFormula.Equality(
@@ -579,7 +614,7 @@ object InstructionParser {
 
         // TODO works when a.bitsArray.size == b.bitsArray.size
         for (i in 1 until a.bitsArray.size) {
-            val (eqBit, eqSys) = parseEqualityBits(b.bitsArray[i], a.bitsArray[i], bitScheduler)
+            val (eqBit, eqSys) = parseEqualityBits(b.bitsArray[i], a.bitsArray[i])
             system.addAll(eqSys)
             val conjBits = bitScheduler.getAndShift(2)
             val conj1 = conjBits[0]
@@ -591,7 +626,7 @@ object InstructionParser {
                 )
             )
 
-            val (disjBit, disjSys) = parseDisjunctionBits(conj1, conj2, bitScheduler)
+            val (disjBit, disjSys) = parseDisjunctionBits(conj1, conj2)
             system.addAll(disjSys)
             system.add(
                 BooleanFormula.Equality(
@@ -632,7 +667,7 @@ object InstructionParser {
         )
 
         for (i in 1 until a.bitsArray.size) {
-            val (disj, disjSys) = parseDisjunctionBits(a.bitsArray[i], systemBits[i - 1], bitScheduler)
+            val (disj, disjSys) = parseDisjunctionBits(a.bitsArray[i], systemBits[i - 1])
             system.addAll(disjSys)
             system.add(
                 BooleanFormula.Equality(

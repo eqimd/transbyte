@@ -1,4 +1,4 @@
-import bit_scheduler.BitSchedulerImpl
+
 import constants.Constants
 import kotlinx.cli.ArgParser
 import kotlinx.cli.ArgType
@@ -58,8 +58,7 @@ fun main(args: Array<String>) {
         classParser.parse()
     }
 
-    val bitScheduler = BitSchedulerImpl(1)
-    val translator = BytecodeTranslatorImpl(*classes, bitScheduler = bitScheduler)
+    val translator = BytecodeTranslatorImpl(*classes)
 
     val circuit = translator.translate(startClass, methodStartName)
     val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)

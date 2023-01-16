@@ -2,6 +2,7 @@ package parsed_types
 
 import bit_scheduler.BitScheduler
 import constants.ConstantPoolIndex
+import constants.GlobalSettings
 import extension.bitsSize
 import extension.fullDescription
 import org.apache.bcel.Const
@@ -17,10 +18,11 @@ import parsed_types.data.VariableSat
 
 class ClassSat(
     val clazz: JavaClass,
-    private val bitScheduler: BitScheduler,
 ) {
     private val cpGen = ConstantPoolGen(clazz.constantPool)
     private val primaryTypesBitsMap = HashMap<ConstantPoolIndex, VariableSat.Primitive>()
+
+    private val bitScheduler: BitScheduler = GlobalSettings.bitScheduler
 
     // TODO decide how to add the field below later
     // private val classTypesBitsMap
@@ -48,8 +50,7 @@ class ClassSat(
 
                     // TODO do we need to add system with default zero value?
                     val (primitive, _) = VariableSat.Primitive.create(
-                        size = type.bitsSize,
-                        bitScheduler = bitScheduler
+                        size = type.bitsSize
                     )
 
                     primaryTypesBitsMap[index] = primitive
@@ -68,7 +69,11 @@ class ClassSat(
         }
 
         for (method in clazz.methods) {
-            _methods[method.fullDescription] = MethodSat(this, method, cpGen, bitScheduler)
+            _methods[method.fullDescription] = MethodSat(
+                this,
+                method,
+                cpGen
+            )
         }
     }
 
