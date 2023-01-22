@@ -3,8 +3,10 @@
 class LFSR {
 
     public static boolean[] get_lfsr(boolean[] reg) {
-        boolean[] output = new boolean[100];
-        for (int i = 0; i < 100; i++) {
+        int len = 128;
+
+        boolean[] output = new boolean[len];
+        for (int i = 0; i < len; i++) {
             output[i] = shiftReg(reg);
         }
 

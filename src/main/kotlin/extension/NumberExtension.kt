@@ -53,3 +53,16 @@ infix fun Number.xor(constant: Number): Number =
             throw NotSupportedOperationOnNumbersException("Can't xor ${this.javaClass} and ${constant.javaClass}")
         }
     }
+
+infix fun Number.or(constant: Number): Number =
+    when {
+        (this is Int && constant is Int) -> {
+            this.toInt() or constant.toInt()
+        }
+        (this is Long && constant is Long) -> {
+            this.toLong() or constant.toLong()
+        }
+        else -> {
+            throw NotSupportedOperationOnNumbersException("Can't or ${this.javaClass} and ${constant.javaClass}")
+        }
+    }

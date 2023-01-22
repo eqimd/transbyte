@@ -27,17 +27,21 @@ import org.apache.bcel.generic.GOTO
 import org.apache.bcel.generic.IADD
 import org.apache.bcel.generic.ICONST
 import org.apache.bcel.generic.IFLE
+import org.apache.bcel.generic.IFNE
 import org.apache.bcel.generic.IF_ICMPGE
+import org.apache.bcel.generic.IF_ICMPNE
 import org.apache.bcel.generic.IINC
 import org.apache.bcel.generic.ILOAD
 import org.apache.bcel.generic.IMUL
 import org.apache.bcel.generic.INVOKESTATIC
+import org.apache.bcel.generic.IOR
 import org.apache.bcel.generic.IRETURN
 import org.apache.bcel.generic.ISTORE
 import org.apache.bcel.generic.ISUB
 import org.apache.bcel.generic.IXOR
 import org.apache.bcel.generic.LADD
 import org.apache.bcel.generic.LMUL
+import org.apache.bcel.generic.LOR
 import org.apache.bcel.generic.LSUB
 import org.apache.bcel.generic.LXOR
 import org.apache.bcel.generic.LoadInstruction
@@ -45,6 +49,7 @@ import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
 import org.apache.bcel.generic.RETURN
 import org.apache.bcel.generic.ReferenceType
+import org.apache.bcel.generic.SIPUSH
 import parsed_types.data.VariableSat
 import java.lang.RuntimeException
 import kotlin.math.abs
@@ -55,7 +60,6 @@ class MethodSat(
     cpGen: ConstantPoolGen,
 ) {
     private val bitScheduler: BitScheduler = GlobalSettings.bitScheduler
-    private val primitiveConstants = GlobalSettings.primitiveConstants
 
     val methodGen = MethodGen(method, classSat.clazz.className, cpGen)
 
@@ -88,6 +92,7 @@ class MethodSat(
                     val b = stack.removeLast() as VariableSat.Primitive
                     val a = stack.removeLast() as VariableSat.Primitive
 
+                    // reversed condition, because if original condition is true then interpreter should jump forward
                     val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b)
                     system.addAll(condSystem)
 
@@ -113,15 +118,44 @@ class MethodSat(
                             )
                         )
 
-                        // TODO deep copy of ArrayOfPrimitive
                         locals = deepCopyLocals(locals)
                     }
                 }
+
+                is IF_ICMPNE -> {
+                    val b = stack.removeLast() as VariableSat.Primitive
+                    val a = stack.removeLast() as VariableSat.Primitive
+
+                    // reversed condition, because if original condition is true then interpreter should jump forward
+                    val (condBit, condSystem) = InstructionParser.parseEqualsCondition(a, b)
+                    system.addAll(condSystem)
+
+                    // TODO constants is not necessary ints
+                    if (a.constant != null && b.constant != null) {
+                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()) - 1)
+                    }
+
+                    val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
+                    val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
+
+                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                        conditionStack.addLast(
+                            ConditionCopy(
+                                condBit,
+                                locals,
+                                instrJumpIndex
+                            )
+                        )
+
+                        locals = deepCopyLocals(locals)
+                    }
+                }
+
                 is IFLE -> {
                     val a = stack.removeLast() as VariableSat.Primitive
 
                     // reversed condition, because if original condition is true then interpreter should jump forward
-                    val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a, bitScheduler)
+                    val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a)
 
                     system.addAll(condSystem)
 
@@ -151,6 +185,42 @@ class MethodSat(
                         locals = deepCopyLocals(locals)
                     }
                 }
+
+                is IFNE -> {
+                    val a = stack.removeLast() as VariableSat.Primitive
+
+                    // reversed condition, because if original condition is true then interpreter should jump forward
+                    val (condBit, condSystem) = InstructionParser.parseEqualToZero(a)
+
+                    system.addAll(condSystem)
+
+                    // TODO do we need this optimisation?
+//                    if (condition == BitValue.FALSE) {
+//                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
+//                    }
+
+                    // TODO constant is not necessary int
+                    if (a.constant != null) {
+                        cycleIterationsStack.addLast(abs(a.constant.toInt()) - 1)
+                    }
+
+                    val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
+                    val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
+
+                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                        conditionStack.addLast(
+                            ConditionCopy(
+                                condBit,
+                                locals,
+                                instrJumpIndex
+                            )
+                        )
+
+                        // TODO deep copy of ArrayOfPrimitives
+                        locals = deepCopyLocals(locals)
+                    }
+                }
+
                 is GOTO -> {
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
@@ -164,7 +234,8 @@ class MethodSat(
                                 cycleIterationsStack.addLast(last - 1)
                                 instrIndex = instrJumpIndex - 1
 
-                                val instructionToJump = methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+                                val instructionToJump =
+                                    methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
                                 val localIndex = instructionToJump.index
 
                                 val condLast = conditionStack.removeLast()
@@ -178,7 +249,8 @@ class MethodSat(
                             cycleIterationsStack.addLast(CYCLE_ITERATIONS - 1)
                             instrIndex = instrJumpIndex - 1
 
-                            val instructionToJump = methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+                            val instructionToJump =
+                                methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
                             val localIndex = instructionToJump.index
 
                             val condLast = conditionStack.removeLast()
@@ -201,6 +273,7 @@ class MethodSat(
                         locals = condCopy.locals
                     }
                 }
+
                 is ASTORE -> {
                     when (val last = stack.removeLast()) {
                         is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
@@ -212,6 +285,7 @@ class MethodSat(
                         }
                     }
                 }
+
                 is BASTORE -> {
                     val value = stack.removeLast() as VariableSat.Primitive
                     val index = stack.removeLast() as VariableSat.Primitive
@@ -220,6 +294,7 @@ class MethodSat(
                     // TODO right now it works only when index constant is known
                     arrayRef.primitives[index.constant!!.toInt()] = value
                 }
+
                 is ALOAD -> {
                     when (locals[instruction.index]) {
                         is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
@@ -231,19 +306,23 @@ class MethodSat(
                         }
                     }
                 }
+
                 is ILOAD -> {
                     stack.addLast(locals[instruction.index]!! as VariableSat.Primitive)
                 }
-                is ICONST, is BIPUSH -> {
+
+                is ICONST, is BIPUSH, is SIPUSH -> {
                     instruction as ConstantPushInstruction
                     val (parsedBitsArray, parsedSystem) = InstructionParser.parsePush(instruction.value)
 
                     stack.addLast(parsedBitsArray)
                     system.addAll(parsedSystem)
                 }
+
                 is ISTORE -> {
                     locals[instruction.index] = stack.removeLast() as VariableSat.Primitive
                 }
+
                 is BALOAD -> {
                     // TODO right now it works only when index is known
                     val index = stack.removeLast() as VariableSat.Primitive
@@ -254,6 +333,7 @@ class MethodSat(
                         arrayRef.primitives[index.constant] as VariableSat
                     )
                 }
+
                 is NEWARRAY -> {
                     val size = stack.removeLast() as VariableSat.Primitive
                     val arrayType = instruction.type as ArrayType
@@ -265,6 +345,7 @@ class MethodSat(
 
                     stack.addLast(arrayPrimitives)
                 }
+
                 is IADD, is LADD -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
@@ -277,6 +358,7 @@ class MethodSat(
                     stack.addLast(c)
                     system.addAll(parseSystem)
                 }
+
                 is IMUL, is LMUL -> {
                     val a = stack.removeLast()
                     val b = stack.removeLast()
@@ -318,6 +400,16 @@ class MethodSat(
                     val b = stack.removeLast() as VariableSat.Primitive
 
                     val (c, parseSystem) = InstructionParser.parseXor(a, b)
+
+                    system.addAll(parseSystem)
+                    stack.addLast(c)
+                }
+
+                is IOR, is LOR -> {
+                    val a = stack.removeLast() as VariableSat.Primitive
+                    val b = stack.removeLast() as VariableSat.Primitive
+
+                    val (c, parseSystem) = InstructionParser.parseOr(a, b)
 
                     system.addAll(parseSystem)
                     stack.addLast(c)
@@ -507,6 +599,7 @@ class MethodSat(
 
                     system.addAll(condLocalsSystem)
                 }
+
                 is VariableSat.ArrayReference.ArrayOfPrimitives -> {
                     val curLocal = locals[key] as VariableSat.ArrayReference.ArrayOfPrimitives
                     val newLocal = condLocal.copy()
@@ -578,6 +671,7 @@ class MethodSat(
                         }
                     }
                 }
+
                 else -> {
                     throw RuntimeException("Not supported right now")
                 }
