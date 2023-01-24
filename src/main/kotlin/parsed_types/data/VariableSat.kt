@@ -10,18 +10,28 @@ sealed interface VariableSat {
     class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : VariableSat {
         companion object {
             fun create(size: Int, constant: Number? = null): Pair<Primitive, BooleanSystem> {
+                val primitiveConstants = GlobalSettings.primitiveConstants
+                if (constant != null && primitiveConstants.containsKey(constant)) {
+                    val primitive = Primitive(
+                        primitiveConstants[constant]!!.bitsArray.take(size).toTypedArray(),
+                        constant
+                    )
+
+                    return Pair(primitive, emptyList())
+                }
+
                 val bitScheduler = GlobalSettings.bitScheduler
 
                 val bitsArray = bitScheduler.getAndShift(size)
                 val primitive = Primitive(bitsArray, constant)
 
                 val parseSystem: List<BooleanFormula.Equality> = if (constant != null) {
+                    primitiveConstants[constant] = primitive
+
                     List(size) { index ->
                         BooleanFormula.Equality(
                             bitsArray[index],
-                            BooleanFormula
-                                .Variable
-                                .Constant
+                            BooleanFormula.Variable.Constant
                                 .getByBoolean((constant.toLong().shr(index).and(1L) != 0L))
                         )
                     }
@@ -39,13 +49,13 @@ sealed interface VariableSat {
             var primitives = HashMap<Int, Primitive>()
 
             companion object {
-                fun create(size: Int? = null, primitiveSize: Int): Pair<ArrayReference, BooleanSystem> {
+                fun create(size: Int? = null, primitiveSize: Int, constant: Number? = null): Pair<ArrayReference, BooleanSystem> {
                     val arrayOfPrimitives = ArrayOfPrimitives(size, primitiveSize)
                     val parseSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
                     if (size != null) {
                         for (i in 0 until size) {
-                            val (primitive, sys) = Primitive.create(size = primitiveSize, constant = 0)
+                            val (primitive, sys) = Primitive.create(size = primitiveSize, constant = constant)
                             parseSystem.addAll(sys)
                             arrayOfPrimitives.primitives[i] = primitive
                         }

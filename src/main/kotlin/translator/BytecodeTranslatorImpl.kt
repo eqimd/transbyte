@@ -41,6 +41,9 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")
 
         val circuitSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+
+        var inputBits = emptyList<BooleanFormula.Variable.Bit>()
+
         val methodSatArgs = if (args.isEmpty()) {
             Array(methodSat.methodGen.argumentTypes.size) { i ->
                 when (val type = methodSat.methodGen.argumentTypes[i]) {
@@ -51,12 +54,22 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
                             primitiveSize = type.basicType.bitsSize,
                         )
 
+                        inputBits =
+                            (arg as VariableSat.ArrayReference.ArrayOfPrimitives)
+                                .primitives
+                                .values
+                                .map { it.bitsArray.toList() }
+                                .flatten()
+
                         arg
                     }
                     is BasicType -> {
                         val (arg, _) = VariableSat.Primitive.create(
                             size = type.bitsSize
                         )
+
+                        inputBits = arg.bitsArray.toList()
+
                         arg
                     }
                     else -> {
@@ -70,15 +83,24 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
         return when (val methodRetVal = methodSat.parse(*methodSatArgs)) {
             is MethodSat.MethodParseReturnValue.SystemOnly -> {
                 circuitSystem.addAll(methodRetVal.system)
-                EncodingCircuit(methodSatArgs.toList(), null, circuitSystem)
+
+                EncodingCircuit(inputBits, null, circuitSystem)
             }
             is MethodSat.MethodParseReturnValue.SystemWithPrimitive -> {
                 circuitSystem.addAll(methodRetVal.system)
-                EncodingCircuit(methodSatArgs.toList(), methodRetVal.primitive, circuitSystem)
+
+                EncodingCircuit(inputBits, methodRetVal.primitive.bitsArray.toList(), circuitSystem)
             }
             is MethodSat.MethodParseReturnValue.SystemWithArray -> {
                 circuitSystem.addAll(methodRetVal.system)
-                EncodingCircuit(methodSatArgs.toList(), methodRetVal.arrayReference, circuitSystem)
+                val outputBits =
+                    (methodRetVal.arrayReference as VariableSat.ArrayReference.ArrayOfPrimitives)
+                        .primitives
+                        .values
+                        .map { it.bitsArray.toList() }
+                        .flatten()
+
+                EncodingCircuit(inputBits, outputBits, circuitSystem)
             }
             else -> {
                 TODO("Not supported yet")

@@ -3,7 +3,6 @@ package parsed_types
 import bit_scheduler.BitScheduler
 import boolean_logic.BooleanFormula
 import constants.BooleanSystem
-import constants.Constants.CYCLE_ITERATIONS
 import constants.GlobalSettings
 import constants.MutableBooleanSystem
 import exception.MethodParseException
@@ -44,7 +43,6 @@ import org.apache.bcel.generic.LMUL
 import org.apache.bcel.generic.LOR
 import org.apache.bcel.generic.LSUB
 import org.apache.bcel.generic.LXOR
-import org.apache.bcel.generic.LoadInstruction
 import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
 import org.apache.bcel.generic.RETURN
@@ -52,7 +50,6 @@ import org.apache.bcel.generic.ReferenceType
 import org.apache.bcel.generic.SIPUSH
 import parsed_types.data.VariableSat
 import java.lang.RuntimeException
-import kotlin.math.abs
 
 class MethodSat(
     private val classSat: ClassSat,
@@ -69,6 +66,7 @@ class MethodSat(
 
     fun parse(vararg args: VariableSat): MethodParseReturnValue {
         logger.debug { "Parsing method '$name'" }
+
         var locals = HashMap<Int, VariableSat>()
         parseArgs(locals, *args)
 
@@ -76,7 +74,6 @@ class MethodSat(
         val system: MutableBooleanSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
         val conditionStack = ArrayDeque<ConditionCopy>()
-        val cycleIterationsStack = ArrayDeque<Int>()
 
         var instrIndex = 0
         while (instrIndex < methodGen.instructionList.instructions.size) {
@@ -85,8 +82,11 @@ class MethodSat(
             }
 
             val instruction = methodGen.instructionList.instructions[instrIndex]
+
             logger.debug { "Bit scheduler positions: ${bitScheduler.currentPosition}" }
             logger.debug { "Parsing instruction '$instruction'" }
+            logger.debug { "Instruction index: $instrIndex" }
+
             when (instruction) {
                 is IF_ICMPGE -> {
                     val b = stack.removeLast() as VariableSat.Primitive
@@ -96,29 +96,29 @@ class MethodSat(
                     val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b)
                     system.addAll(condSystem)
 
-                    // TODO do we need this optimisation?
-//                    if (condition == BitValue.FALSE) {
-//                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
-//                    }
-
-                    // TODO constants is not necessary ints
-                    if (a.constant != null && b.constant != null) {
-                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()) - 1)
-                    }
-
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
-                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
-                        conditionStack.addLast(
-                            ConditionCopy(
-                                condBit,
-                                locals,
-                                instrJumpIndex
-                            )
-                        )
+                    when (condBit) {
+                        is BooleanFormula.Variable.Constant -> {
+                            if (condBit == BooleanFormula.Variable.Constant.FALSE) {
+                                instrIndex = instrJumpIndex - 1
+                            }
+                        }
 
-                        locals = deepCopyLocals(locals)
+                        is BooleanFormula.Variable.Bit -> {
+                            if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                                conditionStack.addLast(
+                                    ConditionCopy(
+                                        condBit,
+                                        locals,
+                                        instrJumpIndex
+                                    )
+                                )
+
+                                locals = deepCopyLocals(locals)
+                            }
+                        }
                     }
                 }
 
@@ -130,24 +130,29 @@ class MethodSat(
                     val (condBit, condSystem) = InstructionParser.parseEqualsCondition(a, b)
                     system.addAll(condSystem)
 
-                    // TODO constants is not necessary ints
-                    if (a.constant != null && b.constant != null) {
-                        cycleIterationsStack.addLast(abs(a.constant.toInt() - b.constant.toInt()) - 1)
-                    }
-
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
-                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
-                        conditionStack.addLast(
-                            ConditionCopy(
-                                condBit,
-                                locals,
-                                instrJumpIndex
-                            )
-                        )
+                    when (condBit) {
+                        is BooleanFormula.Variable.Constant -> {
+                            if (condBit == BooleanFormula.Variable.Constant.FALSE) {
+                                instrIndex = instrJumpIndex - 1
+                            }
+                        }
 
-                        locals = deepCopyLocals(locals)
+                        is BooleanFormula.Variable.Bit -> {
+                            if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                                conditionStack.addLast(
+                                    ConditionCopy(
+                                        condBit,
+                                        locals,
+                                        instrJumpIndex
+                                    )
+                                )
+
+                                locals = deepCopyLocals(locals)
+                            }
+                        }
                     }
                 }
 
@@ -159,30 +164,29 @@ class MethodSat(
 
                     system.addAll(condSystem)
 
-                    // TODO do we need this optimisation?
-//                    if (condition == BitValue.FALSE) {
-//                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
-//                    }
-
-                    // TODO constant is not necessary int
-                    if (a.constant != null) {
-                        cycleIterationsStack.addLast(abs(a.constant.toInt()) - 1)
-                    }
-
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
-                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
-                        conditionStack.addLast(
-                            ConditionCopy(
-                                condBit,
-                                locals,
-                                instrJumpIndex
-                            )
-                        )
+                    when (condBit) {
+                        is BooleanFormula.Variable.Constant -> {
+                            if (condBit == BooleanFormula.Variable.Constant.FALSE) {
+                                instrIndex = instrJumpIndex - 1
+                            }
+                        }
 
-                        // TODO deep copy of ArrayOfPrimitives
-                        locals = deepCopyLocals(locals)
+                        is BooleanFormula.Variable.Bit -> {
+                            if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                                conditionStack.addLast(
+                                    ConditionCopy(
+                                        condBit,
+                                        locals,
+                                        instrJumpIndex
+                                    )
+                                )
+
+                                locals = deepCopyLocals(locals)
+                            }
+                        }
                     }
                 }
 
@@ -194,30 +198,29 @@ class MethodSat(
 
                     system.addAll(condSystem)
 
-                    // TODO do we need this optimisation?
-//                    if (condition == BitValue.FALSE) {
-//                        instrIndex = methodGen.instructionList.instructionPositions.indexOf(instruction.index) - 1
-//                    }
-
-                    // TODO constant is not necessary int
-                    if (a.constant != null) {
-                        cycleIterationsStack.addLast(abs(a.constant.toInt()) - 1)
-                    }
-
                     val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
-                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
-                        conditionStack.addLast(
-                            ConditionCopy(
-                                condBit,
-                                locals,
-                                instrJumpIndex
-                            )
-                        )
+                    when (condBit) {
+                        is BooleanFormula.Variable.Constant -> {
+                            if (condBit == BooleanFormula.Variable.Constant.FALSE) {
+                                instrIndex = instrJumpIndex - 1
+                            }
+                        }
 
-                        // TODO deep copy of ArrayOfPrimitives
-                        locals = deepCopyLocals(locals)
+                        is BooleanFormula.Variable.Bit -> {
+                            if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                                conditionStack.addLast(
+                                    ConditionCopy(
+                                        condBit,
+                                        locals,
+                                        instrJumpIndex
+                                    )
+                                )
+
+                                locals = deepCopyLocals(locals)
+                            }
+                        }
                     }
                 }
 
@@ -226,51 +229,57 @@ class MethodSat(
                     val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
                     if (instrJumpIndex < instrIndex) {
+                        instrIndex = instrJumpIndex - 1
                         // Cycle detected
-                        if (cycleIterationsStack.isNotEmpty()) {
-                            val last = cycleIterationsStack.removeLast()
-                            logger.debug { "Cycle iteration: $last" }
-                            if (last > 0) {
-                                cycleIterationsStack.addLast(last - 1)
-                                instrIndex = instrJumpIndex - 1
 
-                                val instructionToJump =
-                                    methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
-                                val localIndex = instructionToJump.index
-
-                                val condLast = conditionStack.removeLast()
-                                condLast.cycleVariableIndex = localIndex
-
-                                locals = parseConditionLocals(locals, condLast, system)
-                            } else {
-                                instrIndex = conditionStack.last().instructionPosition - 1
-                            }
-                        } else {
-                            cycleIterationsStack.addLast(CYCLE_ITERATIONS - 1)
-                            instrIndex = instrJumpIndex - 1
-
-                            val instructionToJump =
-                                methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
-                            val localIndex = instructionToJump.index
-
-                            val condLast = conditionStack.removeLast()
-                            condLast.cycleVariableIndex = localIndex
-
-                            locals = parseConditionLocals(locals, condLast, system)
-                        }
+//                        if (cycleIterationsStack.isNotEmpty()) {
+//                            val last = cycleIterationsStack.removeLast()
+//                            logger.debug { "Cycle iteration: $last" }
+//                            if (last > 0) {
+//                                cycleIterationsStack.addLast(last - 1)
+//                                instrIndex = instrJumpIndex - 1
+//
+//                                val instructionToJump =
+//                                    methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+//                                val localIndex = instructionToJump.index
+//
+//                                val condLast = conditionStack.removeLast()
+//                                condLast.cycleVariableIndex = localIndex
+//
+//                                locals = parseConditionLocals(locals, condLast, system)
+//                            } else {
+//                                instrIndex = conditionStack.last().instructionPosition - 1
+//                            }
+//                        } else {
+//                            cycleIterationsStack.addLast(CYCLE_ITERATIONS - 1)
+//                            instrIndex = instrJumpIndex - 1
+//
+//                            val instructionToJump =
+//                                methodGen.instructionList.instructions[instrIndex + 1] as LoadInstruction
+//                            val localIndex = instructionToJump.index
+//
+//                            val condLast = conditionStack.removeLast()
+//                            condLast.cycleVariableIndex = localIndex
+//
+//                            locals = parseConditionLocals(locals, condLast, system)
+//                        }
                     } else {
                         // Next instructions will be from else-branch
-                        val condCopy = conditionStack.removeLast()
+                        if (conditionStack.isNotEmpty()) {
+                            val condCopy = conditionStack.removeLast()
 
-                        val newCond = ConditionCopy(
-                            conditionBit = condCopy.conditionBit,
-                            locals = locals,
-                            instructionPosition = instrJumpIndex,
-                            inElseBranch = true
-                        )
-                        conditionStack.addLast(newCond)
+                            val newCond = ConditionCopy(
+                                conditionBit = condCopy.conditionBit,
+                                locals = locals,
+                                instructionPosition = instrJumpIndex,
+                                inElseBranch = true
+                            )
+                            conditionStack.addLast(newCond)
 
-                        locals = condCopy.locals
+                            locals = condCopy.locals
+                        } else {
+                            instrIndex = instrJumpIndex - 1
+                        }
                     }
                 }
 
@@ -340,6 +349,7 @@ class MethodSat(
                     val (arrayPrimitives, parseSystem) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
                         size = size.constant?.toInt(),
                         primitiveSize = arrayType.basicType.bitsSize,
+                        constant = 0
                     )
                     system.addAll(parseSystem)
 
@@ -420,27 +430,21 @@ class MethodSat(
 
                     val invokedMethod = classSat.getMethodByMethodrefIndex(instruction.index)!!
                     val argsCount = invokedMethod.methodGen.argumentTypes.size
-                    val toArgs = Array(argsCount) { stack.removeLast() }
+                    val toArgs = Array(argsCount) { stack.removeLast() }.reversedArray()
 
                     when (val returnValue = invokedMethod.parse(*toArgs)) {
                         is MethodParseReturnValue.SystemOnly -> {
-                            if (returnValue.system.isNotEmpty()) {
-                                system.addAll(returnValue.system)
-                            }
+                            system.addAll(returnValue.system)
                         }
 
                         is MethodParseReturnValue.SystemWithPrimitive -> {
-                            if (returnValue.system.isNotEmpty()) {
-                                system.addAll(returnValue.system)
-                            }
+                            system.addAll(returnValue.system)
 
                             stack.addLast(returnValue.primitive)
                         }
 
                         is MethodParseReturnValue.SystemWithArray -> {
-                            if (returnValue.system.isNotEmpty()) {
-                                system.addAll(returnValue.system)
-                            }
+                            system.addAll(returnValue.system)
 
                             stack.addLast(returnValue.arrayReference)
                         }
@@ -460,9 +464,10 @@ class MethodSat(
 
                 is ARETURN -> {
                     if (methodGen.returnType is ArrayType) {
+                        val stackLast = stack.removeLast() as VariableSat.ArrayReference
                         return MethodParseReturnValue.SystemWithArray(
                             system,
-                            stack.removeLast() as VariableSat.ArrayReference
+                            stackLast
                         )
                     } else {
                         logger.debug { "Can't return references yet" }
@@ -499,7 +504,7 @@ class MethodSat(
         for ((index, arg) in methodGen.argumentTypes.withIndex()) {
             when (arg) {
                 is ArrayType -> {
-                    locals[index] = args[index] as VariableSat.ArrayReference
+                    locals[index] = args[index] as VariableSat.ArrayReference.ArrayOfPrimitives
                 }
 
                 is ReferenceType -> {
@@ -681,7 +686,7 @@ class MethodSat(
         return newLocals
     }
 
-    private fun deepCopyLocals(locals: HashMap<Int, VariableSat>): HashMap<Int, VariableSat> {
+    private fun deepCopyLocals(locals: Map<Int, VariableSat>): HashMap<Int, VariableSat> {
         val newLocals = HashMap(locals)
 
         for (k in locals.keys) {

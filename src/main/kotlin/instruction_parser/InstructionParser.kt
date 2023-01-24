@@ -24,19 +24,11 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant + b.constant
 
-            val primitiveConstants = GlobalSettings.primitiveConstants
-
-            if (primitiveConstants.containsKey(constC)) {
-                return Pair(primitiveConstants[constC]!!, emptyList())
-            }
-
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
             )
-
-            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -201,19 +193,11 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant * b.constant
 
-            val primitiveConstants = GlobalSettings.primitiveConstants
-
-            if (primitiveConstants.containsKey(constC)) {
-                return Pair(primitiveConstants[constC]!!, emptyList())
-            }
-
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
             )
-
-            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -353,19 +337,11 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant - b.constant
 
-            val primitiveConstants = GlobalSettings.primitiveConstants
-
-            if (primitiveConstants.containsKey(constC)) {
-                return Pair(primitiveConstants[constC]!!, emptyList())
-            }
-
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
             )
-
-            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -442,8 +418,8 @@ object InstructionParser {
             ),
             BooleanFormula.Equality(
                 xorFullBit,
-                xorLhsNegatedBit.negated(),
-                xorRhsNegatedBit.negated()
+                xorLhsNegatedBit,
+                xorRhsNegatedBit
             )
         )
 
@@ -460,19 +436,11 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant or b.constant
 
-            val primitiveConstants = GlobalSettings.primitiveConstants
-
-            if (primitiveConstants.containsKey(constC)) {
-                return Pair(primitiveConstants[constC]!!, emptyList())
-            }
-
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
             )
-
-            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -508,19 +476,11 @@ object InstructionParser {
         if (a.constant != null && b.constant != null) {
             val constC = a.constant xor b.constant
 
-            val primitiveConstants = GlobalSettings.primitiveConstants
-
-            if (primitiveConstants.containsKey(constC)) {
-                return Pair(primitiveConstants[constC]!!, emptyList())
-            }
-
             val cValue = constC.toInt()
             val (c, parseSystem) = VariableSat.Primitive.create(
                 size = varSize,
                 constant = cValue,
             )
-
-            primitiveConstants[constC] = c
 
             return Pair(c, parseSystem)
         }
@@ -548,17 +508,10 @@ object InstructionParser {
 
     @JvmStatic
     fun parsePush(value: Number): Pair<VariableSat.Primitive, BooleanSystem> {
-        val primitiveConstants = GlobalSettings.primitiveConstants
-        if (primitiveConstants.containsKey(value)) {
-            return Pair(primitiveConstants[value]!!, emptyList())
-        }
-
         val (primitive, system) = VariableSat.Primitive.create(
             size = INT_BITS,
             constant = value,
         )
-
-        primitiveConstants[value] = primitive
 
         return Pair(primitive, system)
     }
@@ -567,7 +520,7 @@ object InstructionParser {
     fun parseLessCondition(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-    ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
+    ): Pair<BooleanFormula.Variable, BooleanSystem> {
         // Condition: a < b
 
         val bitScheduler = GlobalSettings.bitScheduler
@@ -575,14 +528,19 @@ object InstructionParser {
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
         // TODO maybe .constant.toInt() is enough
         if (a.constant != null && b.constant != null) {
-            val bit = bitScheduler.getAndShift(1).first()
-            system.add(
-                BooleanFormula.Equality(
-                    bit,
-                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong())
-                )
+//            val bit = bitScheduler.getAndShift(1).first()
+//            system.add(
+//                BooleanFormula.Equality(
+//                    bit,
+//                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong())
+//                )
+//            )
+//            return Pair(bit, system)
+
+            return Pair(
+                BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong()),
+                emptyList()
             )
-            return Pair(bit, system)
         }
 
         val systemBits = bitScheduler.getAndShift(a.bitsArray.size)
@@ -690,20 +648,25 @@ object InstructionParser {
     @JvmStatic
     fun parseGreaterThanZero(
         a: VariableSat.Primitive,
-    ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
+    ): Pair<BooleanFormula.Variable, BooleanSystem> {
         val bitScheduler = GlobalSettings.bitScheduler
 
         // a > 0
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
         if (a.constant != null) {
-            val bit = bitScheduler.getAndShift(1).first()
-            system.add(
-                BooleanFormula.Equality(
-                    bit,
-                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() > 0)
-                )
+//            val bit = bitScheduler.getAndShift(1).first()
+//            system.add(
+//                BooleanFormula.Equality(
+//                    bit,
+//                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() > 0)
+//                )
+//            )
+//            return Pair(bit, system)
+
+            return Pair(
+                BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() > 0),
+                emptyList()
             )
-            return Pair(bit, system)
         }
 
         val systemBits = bitScheduler.getAndShift(a.bitsArray.size)
@@ -732,23 +695,29 @@ object InstructionParser {
     fun parseEqualsCondition(
         a: VariableSat.Primitive,
         b: VariableSat.Primitive,
-    ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
+    ): Pair<BooleanFormula.Variable, BooleanSystem> {
         // condition: a == b
 
         val bitScheduler = GlobalSettings.bitScheduler
 
         if (a.constant != null && b.constant != null) {
-            val bit = bitScheduler.getAndShift(1).first()
-            val system = listOf(
-                BooleanFormula.Equality(
-                    bit,
-                    BooleanFormula.Variable.Constant.getByBoolean(
-                        a.constant == b.constant
-                    )
-                )
+//            val bit = bitScheduler.getAndShift(1).first()
+//            val system = listOf(
+//                BooleanFormula.Equality(
+//                    bit,
+//                    BooleanFormula.Variable.Constant.getByBoolean(
+//                        a.constant == b.constant
+//                    )
+//                )
+//            )
+//
+//            return Pair(bit, system)
+            return Pair(
+                BooleanFormula.Variable.Constant.getByBoolean(
+                    a.constant == b.constant
+                ),
+                emptyList()
             )
-
-            return Pair(bit, system)
         }
 
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
@@ -781,23 +750,30 @@ object InstructionParser {
     @JvmStatic
     fun parseEqualToZero(
         a: VariableSat.Primitive
-    ): Pair<BooleanFormula.Variable.Bit, BooleanSystem> {
+    ): Pair<BooleanFormula.Variable, BooleanSystem> {
         // condition: a == 0
 
         val bitScheduler = GlobalSettings.bitScheduler
 
         if (a.constant != null) {
-            val bit = bitScheduler.getAndShift(1).first()
-            val system = listOf(
-                BooleanFormula.Equality(
-                    bit,
-                    BooleanFormula.Variable.Constant.getByBoolean(
-                        a.constant == 0
-                    )
-                )
-            )
+//            val bit = bitScheduler.getAndShift(1).first()
+//            val system = listOf(
+//                BooleanFormula.Equality(
+//                    bit,
+//                    BooleanFormula.Variable.Constant.getByBoolean(
+//                        a.constant == 0
+//                    )
+//                )
+//            )
+//
+//            return Pair(bit, system)
 
-            return Pair(bit, system)
+            return Pair(
+                BooleanFormula.Variable.Constant.getByBoolean(
+                    a.constant == 0
+                ),
+                emptyList()
+            )
         }
 
         val system = emptyList<BooleanFormula.Equality>().toMutableList()
