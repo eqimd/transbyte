@@ -108,27 +108,24 @@ object InstructionParser {
 
         val bitScheduler = GlobalSettings.bitScheduler
 
-        val majBits = bitScheduler.getAndShift(4)
-        val bitXY = majBits[0]
-        val bitXZ = majBits[1]
-        val bitYZ = majBits[2]
-        val allBit = majBits[3]
-
-        val bitXyXzNeg = bitScheduler.getAndShift(1).first()
+        val conjBits = bitScheduler.getAndShift(3)
+        val bitXY = conjBits[0]
+        val bitXZ = conjBits[1]
+        val bitYZ = conjBits[2]
 
         val system = listOf(
             Equality(bitXY, x, y),
             Equality(bitXZ, x, z),
-            Equality(bitYZ, y, z),
-            Equality(bitXyXzNeg, bitXY.negated(), bitXZ.negated()),
-            Equality(
-                allBit,
-                bitXyXzNeg,
-                bitYZ.negated()
-            )
-        )
+            Equality(bitYZ, y, z)
+        ).toMutableList()
 
-        return Pair(allBit.negated(), system)
+        val (disjFirst, disjFirstSys) = parseDisjunctionBits(bitXY, bitXZ)
+        system.addAll(disjFirstSys)
+
+        val (disjSecond, disjSecondSys) = parseDisjunctionBits(disjFirst, bitYZ)
+        system.addAll(disjSecondSys)
+
+        return Pair(disjSecond, system)
     }
 
     @JvmStatic
