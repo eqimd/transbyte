@@ -569,15 +569,6 @@ object InstructionParser {
         val system = emptyList<Equality>().toMutableList()
         // TODO maybe .constant.toInt() is enough
         if (a.constant != null && b.constant != null) {
-//            val bit = bitScheduler.getAndShift(1).first()
-//            system.add(
-//                BooleanFormula.Equality(
-//                    bit,
-//                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong())
-//                )
-//            )
-//            return Pair(bit, system)
-
             return Pair(
                 BooleanVariable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong()),
                 emptyList()
@@ -695,15 +686,6 @@ object InstructionParser {
         // a > 0
         val system = emptyList<Equality>().toMutableList()
         if (a.constant != null) {
-//            val bit = bitScheduler.getAndShift(1).first()
-//            system.add(
-//                BooleanFormula.Equality(
-//                    bit,
-//                    BooleanFormula.Variable.Constant.getByBoolean(a.constant.toLong() > 0)
-//                )
-//            )
-//            return Pair(bit, system)
-
             return Pair(
                 BooleanVariable.Constant.getByBoolean(a.constant.toLong() > 0),
                 emptyList()
@@ -742,17 +724,6 @@ object InstructionParser {
         val bitScheduler = GlobalSettings.bitScheduler
 
         if (a.constant != null && b.constant != null) {
-//            val bit = bitScheduler.getAndShift(1).first()
-//            val system = listOf(
-//                BooleanFormula.Equality(
-//                    bit,
-//                    BooleanFormula.Variable.Constant.getByBoolean(
-//                        a.constant == b.constant
-//                    )
-//                )
-//            )
-//
-//            return Pair(bit, system)
             return Pair(
                 BooleanVariable.Constant.getByBoolean(
                     a.constant == b.constant
@@ -797,18 +768,6 @@ object InstructionParser {
         val bitScheduler = GlobalSettings.bitScheduler
 
         if (a.constant != null) {
-//            val bit = bitScheduler.getAndShift(1).first()
-//            val system = listOf(
-//                BooleanFormula.Equality(
-//                    bit,
-//                    BooleanFormula.Variable.Constant.getByBoolean(
-//                        a.constant == 0
-//                    )
-//                )
-//            )
-//
-//            return Pair(bit, system)
-
             return Pair(
                 BooleanVariable.Constant.getByBoolean(
                     a.constant == 0
