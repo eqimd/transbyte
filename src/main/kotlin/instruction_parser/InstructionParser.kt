@@ -4,6 +4,7 @@ import boolean_logic.BooleanFormula
 import constants.BooleanSystem
 import constants.Constants.INT_BITS
 import constants.GlobalSettings
+import extension.and
 import extension.minus
 import extension.or
 import extension.plus
@@ -424,6 +425,45 @@ object InstructionParser {
         )
 
         return Pair(xorFullNegatedBit, system)
+    }
+
+    @JvmStatic
+    fun parseAnd(
+        a: VariableSat.Primitive,
+        b: VariableSat.Primitive,
+    ): Pair<VariableSat.Primitive, BooleanSystem> {
+        val varSize = a.bitsArray.size
+
+        if (a.constant != null && b.constant != null) {
+            val constC = a.constant and b.constant
+
+            val cValue = constC.toInt()
+            val (c, parseSystem) = VariableSat.Primitive.create(
+                size = varSize,
+                constant = cValue,
+            )
+
+            return Pair(c, parseSystem)
+        }
+
+        val system = emptyList<BooleanFormula.Equality>().toMutableList()
+
+        val (c, _) = VariableSat.Primitive.create(
+            size = varSize,
+        )
+        val cArr = c.bitsArray
+
+        for (i in 0 until a.bitsArray.size) {
+            system.add(
+                BooleanFormula.Equality(
+                    cArr[i],
+                    a.bitsArray[i],
+                    b.bitsArray[i]
+                )
+            )
+        }
+
+        return Pair(c, system)
     }
 
     @JvmStatic

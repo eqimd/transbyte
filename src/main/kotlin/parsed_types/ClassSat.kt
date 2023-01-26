@@ -11,6 +11,7 @@ import org.apache.bcel.classfile.ConstantFieldref
 import org.apache.bcel.classfile.ConstantMethodref
 import org.apache.bcel.classfile.ConstantNameAndType
 import org.apache.bcel.classfile.JavaClass
+import org.apache.bcel.generic.ArrayType
 import org.apache.bcel.generic.BasicType
 import org.apache.bcel.generic.ConstantPoolGen
 import parsed_types.data.MethodRefNames
@@ -48,12 +49,18 @@ class ClassSat(
                     val utf = nameAndType.getSignature(clazz.constantPool)
                     val type = BasicType.getType(utf)
 
-                    // TODO do we need to add system with default zero value?
-                    val (primitive, _) = VariableSat.Primitive.create(
-                        size = type.bitsSize
-                    )
+                    when (type) {
+                        is BasicType -> {
+                            val (primitive, _) = VariableSat.Primitive.create(
+                                size = type.bitsSize
+                            )
+                            primaryTypesBitsMap[index] = primitive
+                        }
 
-                    primaryTypesBitsMap[index] = primitive
+                        is ArrayType -> {
+                            TODO("not implemented yet")
+                        }
+                    }
                 }
                 Const.CONSTANT_Methodref -> {
                     constant as ConstantMethodref

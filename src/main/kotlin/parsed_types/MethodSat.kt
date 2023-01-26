@@ -24,6 +24,7 @@ import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.ConstantPushInstruction
 import org.apache.bcel.generic.GOTO
 import org.apache.bcel.generic.IADD
+import org.apache.bcel.generic.IAND
 import org.apache.bcel.generic.ICONST
 import org.apache.bcel.generic.IFLE
 import org.apache.bcel.generic.IFNE
@@ -39,12 +40,14 @@ import org.apache.bcel.generic.ISTORE
 import org.apache.bcel.generic.ISUB
 import org.apache.bcel.generic.IXOR
 import org.apache.bcel.generic.LADD
+import org.apache.bcel.generic.LAND
 import org.apache.bcel.generic.LMUL
 import org.apache.bcel.generic.LOR
 import org.apache.bcel.generic.LSUB
 import org.apache.bcel.generic.LXOR
 import org.apache.bcel.generic.MethodGen
 import org.apache.bcel.generic.NEWARRAY
+import org.apache.bcel.generic.POP
 import org.apache.bcel.generic.RETURN
 import org.apache.bcel.generic.ReferenceType
 import org.apache.bcel.generic.SIPUSH
@@ -137,7 +140,6 @@ class MethodSat(
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
                         val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a)
-
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -148,7 +150,6 @@ class MethodSat(
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
                         val (condBit, condSystem) = InstructionParser.parseEqualToZero(a)
-
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -258,6 +259,10 @@ class MethodSat(
                         system.addAll(parsedSystem)
                     }
 
+                    is POP -> {
+                        stack.removeLast()
+                    }
+
                     is ISTORE -> {
                         locals[instruction.index] = stack.removeLast() as VariableSat.Primitive
                     }
@@ -350,6 +355,16 @@ class MethodSat(
                         val b = stack.removeLast() as VariableSat.Primitive
 
                         val (c, parseSystem) = InstructionParser.parseOr(a, b)
+
+                        system.addAll(parseSystem)
+                        stack.addLast(c)
+                    }
+
+                    is IAND, is LAND -> {
+                        val a = stack.removeLast() as VariableSat.Primitive
+                        val b = stack.removeLast() as VariableSat.Primitive
+
+                        val (c, parseSystem) = InstructionParser.parseAnd(a, b)
 
                         system.addAll(parseSystem)
                         stack.addLast(c)

@@ -3,7 +3,6 @@ package translator
 import bit_scheduler.BitScheduler
 import bit_scheduler.BitSchedulerImpl
 import boolean_logic.BooleanFormula
-import constants.Constants
 import constants.GlobalSettings
 import extension.bitsSize
 import mu.KotlinLogging
@@ -14,16 +13,16 @@ import parsed_types.ClassSat
 import parsed_types.MethodSat
 import parsed_types.data.EncodingCircuit
 import parsed_types.data.VariableSat
-import java.lang.RuntimeException
+import kotlin.RuntimeException
 
-class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
+class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = emptyList()) : Translator {
     private val classSatMap = HashMap<String, ClassSat>()
     private val logger = KotlinLogging.logger {}
 
     private val bitScheduler: BitScheduler = BitSchedulerImpl(1)
     private val primitiveConstants = HashMap<Number, VariableSat.Primitive>()
     init {
-        GlobalSettings.setupSettings(bitScheduler, primitiveConstants)
+        GlobalSettings.setupSettings(bitScheduler, primitiveConstants, arraySizes)
 
         for (clazz in classes) {
             classSatMap[clazz.className] = ClassSat(clazz)
@@ -42,7 +41,9 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
 
         val circuitSystem = emptyList<BooleanFormula.Equality>().toMutableList()
 
-        var inputBits = emptyList<BooleanFormula.Variable.Bit>()
+        var inputBits = emptyList<BooleanFormula.Variable.Bit>().toMutableList()
+
+        val arraySizesIter = GlobalSettings.arraySizes.iterator()
 
         val methodSatArgs = if (args.isEmpty()) {
             Array(methodSat.methodGen.argumentTypes.size) { i ->
@@ -50,16 +51,17 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
                     is ArrayType -> {
                         // TODO parse nested arrays
                         val (arg, _) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
-                            size = Constants.ARRAY_INPUT_SIZE,
+                            size = arraySizesIter.next(),
                             primitiveSize = type.basicType.bitsSize,
                         )
 
-                        inputBits =
+                        inputBits.addAll(
                             (arg as VariableSat.ArrayReference.ArrayOfPrimitives)
                                 .primitives
                                 .values
                                 .map { it.bitsArray.toList() }
                                 .flatten()
+                        )
 
                         arg
                     }
@@ -68,7 +70,9 @@ class BytecodeTranslatorImpl(vararg classes: JavaClass) : Translator {
                             size = type.bitsSize
                         )
 
-                        inputBits = arg.bitsArray.toList()
+                        inputBits.addAll(
+                            arg.bitsArray
+                        )
 
                         arg
                     }

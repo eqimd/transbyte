@@ -48,17 +48,23 @@ fun main(args: Array<String>) {
         description = "Filename for output"
     )
 
+    val arraySizes by argParser.option(
+        ArgType.Int,
+        fullName = "array-sizes",
+        description = "Array sizes for input in method"
+    ).multiple()
+
     argParser.parse(args)
 
     if (isDebug) {
         System.setProperty(SimpleLogger.DEFAULT_LOG_LEVEL_KEY, Constants.LOG_LEVEL_DEBUG)
     }
-    val classes = Array(classFilePaths.size) { i ->
+    val classes = List(classFilePaths.size) { i ->
         val classParser = ClassParser(classFilePaths[i])
         classParser.parse()
     }
 
-    val translator = BytecodeTranslatorImpl(*classes)
+    val translator = BytecodeTranslatorImpl(classes, arraySizes)
 
     val circuit = translator.translate(startClass, methodStartName)
     val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)

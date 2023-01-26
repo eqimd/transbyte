@@ -50,7 +50,7 @@ infix fun Number.xor(constant: Number): Number =
             this.toLong() xor constant.toLong()
         }
         else -> {
-            throw NotSupportedOperationOnNumbersException("Can't xor ${this.javaClass} and ${constant.javaClass}")
+            throw NotSupportedOperationOnNumbersException("Can't 'xor' ${this.javaClass} and ${constant.javaClass}")
         }
     }
 
@@ -63,6 +63,19 @@ infix fun Number.or(constant: Number): Number =
             this.toLong() or constant.toLong()
         }
         else -> {
-            throw NotSupportedOperationOnNumbersException("Can't or ${this.javaClass} and ${constant.javaClass}")
+            throw NotSupportedOperationOnNumbersException("Can't 'or' ${this.javaClass} and ${constant.javaClass}")
+        }
+    }
+
+infix fun Number.and(constant: Number): Number =
+    when {
+        (this is Int && constant is Int) -> {
+            this.toInt() and constant.toInt()
+        }
+        (this is Long && constant is Long) -> {
+            this.toLong() and constant.toLong()
+        }
+        else -> {
+            throw NotSupportedOperationOnNumbersException("Can't 'and' ${this.javaClass} and ${constant.javaClass}")
         }
     }
