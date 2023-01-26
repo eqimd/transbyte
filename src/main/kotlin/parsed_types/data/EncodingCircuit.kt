@@ -1,13 +1,13 @@
 package parsed_types.data
 
-import boolean_logic.BooleanFormula
+import boolean_logic.BooleanVariable
 import constants.BooleanSystem
 import extension.toInt
 import java.io.PrintStream
 
 data class EncodingCircuit(
-    val input: List<BooleanFormula.Variable.Bit>,
-    val output: List<BooleanFormula.Variable.Bit>?,
+    val input: List<BooleanVariable.Bit>,
+    val output: List<BooleanVariable.Bit>?,
     val system: BooleanSystem
 ) {
     fun saveInAigerFormat(printStream: PrintStream = System.out) {
@@ -45,23 +45,20 @@ data class EncodingCircuit(
             val aigBit = eq.bit.bitNumber * 2
 
             val firstBit = when (val conj = eq.conjFirst) {
-                is BooleanFormula.Variable.Bit -> {
+                is BooleanVariable.Bit -> {
                     conj.bitNumber * 2 + conj.isNegated.toInt()
                 }
-                is BooleanFormula.Variable.Constant -> {
+                is BooleanVariable.Constant -> {
                     conj.value.toInt()
                 }
             }
 
             val secondBit = when (val conj = eq.conjSecond) {
-                is BooleanFormula.Variable.Bit -> {
+                is BooleanVariable.Bit -> {
                     conj.bitNumber * 2 + conj.isNegated.toInt()
                 }
-                is BooleanFormula.Variable.Constant -> {
+                is BooleanVariable.Constant -> {
                     conj.value.toInt()
-                }
-                null -> {
-                    1
                 }
             }
             printStream.println("$aigBit $firstBit $secondBit")

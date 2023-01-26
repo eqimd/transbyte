@@ -1,6 +1,7 @@
 package parsed_types.data
 
-import boolean_logic.BooleanFormula
+import boolean_logic.BooleanVariable
+import boolean_logic.Equality
 import constants.BitsArray
 import constants.BooleanSystem
 import constants.GlobalSettings
@@ -25,13 +26,13 @@ sealed interface VariableSat {
                 val bitsArray = bitScheduler.getAndShift(size)
                 val primitive = Primitive(bitsArray, constant)
 
-                val parseSystem: List<BooleanFormula.Equality> = if (constant != null) {
+                val parseSystem: List<Equality> = if (constant != null) {
                     primitiveConstants[constant] = primitive
 
                     List(size) { index ->
-                        BooleanFormula.Equality(
+                        Equality(
                             bitsArray[index],
-                            BooleanFormula.Variable.Constant
+                            BooleanVariable.Constant
                                 .getByBoolean((constant.toLong().shr(index).and(1L) != 0L))
                         )
                     }
@@ -51,7 +52,7 @@ sealed interface VariableSat {
             companion object {
                 fun create(size: Int? = null, primitiveSize: Int, constant: Number? = null): Pair<ArrayReference, BooleanSystem> {
                     val arrayOfPrimitives = ArrayOfPrimitives(size, primitiveSize)
-                    val parseSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+                    val parseSystem = emptyList<Equality>().toMutableList()
 
                     if (size != null) {
                         for (i in 0 until size) {

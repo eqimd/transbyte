@@ -2,7 +2,8 @@ package translator
 
 import bit_scheduler.BitScheduler
 import bit_scheduler.BitSchedulerImpl
-import boolean_logic.BooleanFormula
+import boolean_logic.BooleanVariable
+import boolean_logic.Equality
 import constants.GlobalSettings
 import extension.bitsSize
 import mu.KotlinLogging
@@ -39,9 +40,9 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
         val methodSat = classSat.getMethodByDescription(methodDescription)
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")
 
-        val circuitSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+        val circuitSystem = emptyList<Equality>().toMutableList()
 
-        var inputBits = emptyList<BooleanFormula.Variable.Bit>().toMutableList()
+        var inputBits = emptyList<BooleanVariable.Bit>().toMutableList()
 
         val arraySizesIter = GlobalSettings.arraySizes.iterator()
 

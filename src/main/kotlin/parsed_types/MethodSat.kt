@@ -1,7 +1,8 @@
 package parsed_types
 
 import bit_scheduler.BitScheduler
-import boolean_logic.BooleanFormula
+import boolean_logic.BooleanVariable
+import boolean_logic.Equality
 import constants.BooleanSystem
 import constants.GlobalSettings
 import constants.MutableBooleanSystem
@@ -76,7 +77,7 @@ class MethodSat(
     }
 
     private data class ConditionCopy(
-        val conditionBit: BooleanFormula.Variable.Bit,
+        val conditionBit: BooleanVariable.Bit,
         val locals: HashMap<Int, VariableSat>,
         val instructionPosition: Int,
         val inElseBranch: Boolean = false,
@@ -90,7 +91,7 @@ class MethodSat(
 
         private var locals = HashMap<Int, VariableSat>()
         private val stack = ArrayDeque<VariableSat>()
-        private val system: MutableBooleanSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+        private val system: MutableBooleanSystem = emptyList<Equality>().toMutableList()
 
         private val conditionStack = ArrayDeque<ConditionCopy>()
 
@@ -435,18 +436,18 @@ class MethodSat(
             return MethodParseReturnValue.SystemOnly(system)
         }
 
-        private fun parseConditionBit(conditionBit: BooleanFormula.Variable) {
+        private fun parseConditionBit(conditionBit: BooleanVariable) {
             val ih = methodGen.instructionList.instructionHandles[instrIndex] as BranchHandle
             val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
             when (conditionBit) {
-                is BooleanFormula.Variable.Constant -> {
-                    if (conditionBit == BooleanFormula.Variable.Constant.FALSE) {
+                is BooleanVariable.Constant -> {
+                    if (conditionBit == BooleanVariable.Constant.FALSE) {
                         instrIndex = instrJumpIndex - 1
                     }
                 }
 
-                is BooleanFormula.Variable.Bit -> {
+                is BooleanVariable.Bit -> {
                     if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
                         conditionStack.addLast(
                             ConditionCopy(
@@ -528,11 +529,11 @@ class MethodSat(
 
                         newLocals[key] = newLocal
 
-                        val condLocalsSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+                        val condLocalsSystem = emptyList<Equality>().toMutableList()
 
                         for (i in 0 until condLocal.bitsArray.size) {
-                            val condTrueBit: BooleanFormula.Variable.Bit
-                            val condFalseBit: BooleanFormula.Variable.Bit
+                            val condTrueBit: BooleanVariable.Bit
+                            val condFalseBit: BooleanVariable.Bit
                             if (conditionCopy.inElseBranch) {
                                 condTrueBit = condLocal.bitsArray[i]
                                 condFalseBit = curLocal.bitsArray[i]
@@ -562,22 +563,22 @@ class MethodSat(
 
                             condLocalsSystem.addAll(
                                 listOf(
-                                    BooleanFormula.Equality(
+                                    Equality(
                                         lhsBit,
                                         condTrueBit,
                                         conditionCopy.conditionBit
                                     ),
-                                    BooleanFormula.Equality(
+                                    Equality(
                                         rhsBit,
                                         condFalseBit,
                                         negatedConditionCopyBit
                                     ),
-                                    BooleanFormula.Equality(
+                                    Equality(
                                         fullBit,
                                         lhsNegatedBit,
                                         rhsNegatedBit
                                     ),
-                                    BooleanFormula.Equality(
+                                    Equality(
                                         newLocal.bitsArray[i],
                                         fullNegatedBit
                                     )
@@ -605,11 +606,11 @@ class MethodSat(
 
                                 newLocal.primitives[k] = newPrim
 
-                                val condLocalsSystem = emptyList<BooleanFormula.Equality>().toMutableList()
+                                val condLocalsSystem = emptyList<Equality>().toMutableList()
 
                                 for (i in 0 until condLocalPrim.bitsArray.size) {
-                                    val condTrueBit: BooleanFormula.Variable.Bit
-                                    val condFalseBit: BooleanFormula.Variable.Bit
+                                    val condTrueBit: BooleanVariable.Bit
+                                    val condFalseBit: BooleanVariable.Bit
                                     if (conditionCopy.inElseBranch) {
                                         condTrueBit = condLocalPrim.bitsArray[i]
                                         condFalseBit = curLocalPrim.bitsArray[i]
@@ -632,22 +633,22 @@ class MethodSat(
 
                                     condLocalsSystem.addAll(
                                         listOf(
-                                            BooleanFormula.Equality(
+                                            Equality(
                                                 lhsBit,
                                                 condTrueBit,
                                                 conditionCopy.conditionBit
                                             ),
-                                            BooleanFormula.Equality(
+                                            Equality(
                                                 rhsBit,
                                                 condFalseBit,
                                                 negatedConditionCopyBit
                                             ),
-                                            BooleanFormula.Equality(
+                                            Equality(
                                                 fullBit,
                                                 lhsNegatedBit,
                                                 rhsNegatedBit
                                             ),
-                                            BooleanFormula.Equality(
+                                            Equality(
                                                 newPrim.bitsArray[i],
                                                 fullNegatedBit
                                             )
