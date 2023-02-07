@@ -14,6 +14,7 @@ import mu.KotlinLogging
 import org.apache.bcel.classfile.Method
 import org.apache.bcel.generic.ALOAD
 import org.apache.bcel.generic.ARETURN
+import org.apache.bcel.generic.ARRAYLENGTH
 import org.apache.bcel.generic.ASTORE
 import org.apache.bcel.generic.ArrayType
 import org.apache.bcel.generic.BALOAD
@@ -25,7 +26,9 @@ import org.apache.bcel.generic.ConstantPoolGen
 import org.apache.bcel.generic.ConstantPushInstruction
 import org.apache.bcel.generic.GOTO
 import org.apache.bcel.generic.IADD
+import org.apache.bcel.generic.IALOAD
 import org.apache.bcel.generic.IAND
+import org.apache.bcel.generic.IASTORE
 import org.apache.bcel.generic.ICONST
 import org.apache.bcel.generic.IFLE
 import org.apache.bcel.generic.IFNE
@@ -79,9 +82,9 @@ class MethodSat(
     private data class ConditionCopy(
         val conditionBit: BooleanVariable.Bit,
         val locals: HashMap<Int, VariableSat>,
-        val instructionPosition: Int,
+        val conditionInstructionPosition: Int,
+        val jumpToInstructionPosition: Int,
         val inElseBranch: Boolean = false,
-        var cycleVariableIndex: Int? = null
     )
 
     private inner class InnerInstructionParser {
@@ -103,7 +106,7 @@ class MethodSat(
             parseArgs(*args)
 
             while (instrIndex < methodGen.instructionList.instructions.size) {
-                while (conditionStack.lastOrNull()?.instructionPosition == instrIndex) {
+                while (conditionStack.lastOrNull()?.jumpToInstructionPosition == instrIndex) {
                     locals = parseConditionLocals(conditionStack.removeLast())
                 }
 
@@ -161,6 +164,11 @@ class MethodSat(
                         val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
                         if (instrJumpIndex < instrIndex) {
+//                            var condLast = conditionStack.removeLast()
+//                            while (condLast.conditionInstructionPosition > instrJumpIndex) {
+//                                locals = parseConditionLocals(condLast)
+//                                condLast = conditionStack.removeLastOrNull() ?: break
+//                            }
                             instrIndex = instrJumpIndex - 1
                             // Cycle detected
 
@@ -203,7 +211,8 @@ class MethodSat(
                                 val newCond = ConditionCopy(
                                     conditionBit = condCopy.conditionBit,
                                     locals = locals,
-                                    instructionPosition = instrJumpIndex,
+                                    conditionInstructionPosition = instrIndex,
+                                    jumpToInstructionPosition = instrJumpIndex,
                                     inElseBranch = true
                                 )
                                 conditionStack.addLast(newCond)
@@ -227,7 +236,7 @@ class MethodSat(
                         }
                     }
 
-                    is BASTORE -> {
+                    is BASTORE, is IASTORE -> {
                         val value = stack.removeLast() as VariableSat.Primitive
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
@@ -268,7 +277,7 @@ class MethodSat(
                         locals[instruction.index] = stack.removeLast() as VariableSat.Primitive
                     }
 
-                    is BALOAD -> {
+                    is BALOAD, is IALOAD -> {
                         // TODO right now it works only when index is known
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
@@ -290,6 +299,15 @@ class MethodSat(
                         system.addAll(parseSystem)
 
                         stack.addLast(arrayPrimitives)
+                    }
+
+                    is ARRAYLENGTH -> {
+                        // TODO now it works only with array of primitives
+                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
+                        val (primSize, primSys) = VariableSat.Primitive.create(size = Int.SIZE_BITS, constant = arrayRef.size)
+                        system.addAll(primSys)
+
+                        stack.addLast(primSize)
                     }
 
                     is IADD, is LADD -> {
@@ -448,12 +466,14 @@ class MethodSat(
                 }
 
                 is BooleanVariable.Bit -> {
-                    if (conditionStack.lastOrNull()?.instructionPosition != instrIndex) {
+                    logger.debug { "encoding condition" }
+                    if (conditionStack.lastOrNull()?.jumpToInstructionPosition != instrIndex) {
                         conditionStack.addLast(
                             ConditionCopy(
                                 conditionBit,
                                 locals,
-                                instrJumpIndex
+                                conditionInstructionPosition = instrIndex,
+                                jumpToInstructionPosition = instrJumpIndex,
                             )
                         )
 
@@ -510,10 +530,10 @@ class MethodSat(
             val newLocals = HashMap<Int, VariableSat>()
 
             for (key in conditionCopy.locals.keys) {
-                if (key == conditionCopy.cycleVariableIndex) {
-                    newLocals[key] = locals[key]!!
-                    continue
-                }
+//                if (key == conditionCopy.cycleVariableIndex) {
+//                    newLocals[key] = locals[key]!!
+//                    continue
+//                }
 
                 when (val condLocal = conditionCopy.locals[key]) {
                     is VariableSat.Primitive -> {

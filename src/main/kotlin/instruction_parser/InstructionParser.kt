@@ -257,7 +257,7 @@ object InstructionParser {
         }
 
         for (i in 0 until varSize - 1) {
-            for (j in 0 until varSize - 1) {
+            for (j in 0 until varSize - 1 - i - 1) {
                 val (xorInnerBit, xorInnerSys) = parseXorBits(
                     sumResMult[i][j + 1],
                     tempMult[j + 1][i + 1]
