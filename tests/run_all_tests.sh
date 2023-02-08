@@ -1,3 +1,4 @@
+cd $(dirname -- $(readlink -f $0)) &&
 chmod +x configure.sh && ./configure.sh &&
 cd scripts &&
 ./test_sum.sh &&
