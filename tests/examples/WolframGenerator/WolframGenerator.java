@@ -1,6 +1,5 @@
 class WolframGenerator {
 
-    private boolean[] ddd = new boolean[10];
     public static boolean[] generate(boolean[] reg) {
         int reg_len = 128;
 
