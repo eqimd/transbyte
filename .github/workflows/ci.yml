@@ -58,11 +58,9 @@ jobs:
           java-version: 11
 
       - name: Configure
-        uses: actions/checkout@v3
         run: bash ./tests/configure.sh
 
       - name: Test sum
-        uses: actions/checkout@v3
         run: bash ./tests/scripts/test_sum.sh
 
       - name: Test multiply
