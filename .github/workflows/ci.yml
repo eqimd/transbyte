@@ -44,9 +44,33 @@ jobs:
 
     steps:
       - name: Clone Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Set up JDK 11
-        uses: actions/setup-java@v1
+        uses: actions/setup-java@v2
         with:
           java-version: 11
+
+      - uses: actions/checkout@v3
+      - name: Set up Python 3.10
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+
+      - name: Configure
+        run: bash ./tests/configure.sh
+
+      - name: Test sum
+        run: bash ./tests/scripts/test_sum.sh
+
+      - name: Test multiply
+        run: bash ./tests/scripts/test_mult.sh
+
+      - name: Test LFSR
+        run: bash ./tests/scripts/test_lfsr.sh
+
+      - name: Test A5/1
+        run: bash ./tests/scripts/test_a5_1.sh
+
+      - name: Test Wolfram Generator
+        run: bash ./tests/scripts/test_wolfram.sh
