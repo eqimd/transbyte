@@ -1,3 +1,4 @@
+cd $(dirname -- $(readlink -f $0)) &&
 rm -rf debug &&
 mkdir debug &&
 cd ../../ &&
