@@ -47,7 +47,6 @@ jobs:
       - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-      - run: python3 --version
 
       - name: Clone Repo
         uses: actions/checkout@v2
@@ -58,9 +57,11 @@ jobs:
           java-version: 11
 
       - name: Configure
+        uses: actions/checkout@v3
         run: bash ./tests/configure.sh
 
       - name: Test sum
+        uses: actions/checkout@v3
         run: bash ./tests/scripts/test_sum.sh
 
       - name: Test multiply
