@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
         shortName = "c",
         fullName = "classes",
         description = "All paths to classes for the translator"
-    ).multiple()
+    ).multiple().required()
 
     val startClass by argParser.option(
         ArgType.String,
