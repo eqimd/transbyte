@@ -41,7 +41,7 @@ tasks {
         val sourcesMain = sourceSets.main.get()
         val contents = configurations.runtimeClasspath.get()
             .map { if (it.isDirectory) it else zipTree(it) } +
-                sourcesMain.output
+            sourcesMain.output
         from(contents)
     }
     build {
