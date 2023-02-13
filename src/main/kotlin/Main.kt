@@ -30,7 +30,7 @@ fun main(args: Array<String>) {
 
     val startClass by argParser.option(
         ArgType.String,
-        shortName = "s",
+        shortName = "sc",
         fullName = "start-class",
         description = "Class name where to find start method"
     ).required()
@@ -44,12 +44,14 @@ fun main(args: Array<String>) {
 
     val saveFilename by argParser.option(
         ArgType.String,
+        shortName = "-o",
         fullName = "output",
         description = "Filename for output"
     )
 
     val arraySizes by argParser.option(
         ArgType.Int,
+        shortName = "asz",
         fullName = "array-sizes",
         description = "Array sizes for input in method"
     ).multiple()

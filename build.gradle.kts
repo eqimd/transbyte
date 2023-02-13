@@ -7,7 +7,7 @@ plugins {
 }
 
 group = "org.transbyte"
-version = "0.0.1a"
+version = "0.1.0"
 
 repositories {
     mavenCentral()
