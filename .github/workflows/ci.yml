@@ -57,6 +57,9 @@ jobs:
         with:
           java-version: 11
 
+      - name: Build
+        run: bash ./gradlew build
+
       - name: Configure
         run: bash ./tests/configure.sh
 
