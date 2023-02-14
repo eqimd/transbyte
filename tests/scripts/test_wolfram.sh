@@ -4,7 +4,8 @@ mkdir debug &&
 cd ../../ &&
 ./gradlew run --args="-c tests/examples/WolframGenerator/WolframGenerator.class -sc WolframGenerator -m generate:([Z)[Z --output tests/scripts/debug/wolfram_java.aag --array-sizes 128" &&
 cd tests/scripts/ &&
-./aag2cnf.py -n debug/wolfram_java.aag -o debug/wolfram_java.cnf > /dev/null &&
-cp ../examples/WolframGenerator/wolfram_reference_transalg.cnf debug/ &&
+./aigtoaig debug/wolfram_java.aag debug/wolfram_java.aig &&
+cp ../examples/WolframGenerator/wolfram_reference_transalg.aig debug/ &&
+./abc -q "read debug/wolfram_java.aig ; fraig ; miter debug/wolfram_reference_transalg.aig ; fraig ; write_cnf debug/wolfram_miter.cnf" &&
 echo 'Testing equivalence of Wolfram...' &&
-./check_encodings.py debug/wolfram_java.cnf debug/wolfram_reference_transalg.cnf 128 128
+./kissat -q debug/wolfram_miter.cnf | grep "UNSATISFIABLE"

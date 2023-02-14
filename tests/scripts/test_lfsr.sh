@@ -4,7 +4,8 @@ mkdir debug &&
 cd ../../ &&
 ./gradlew run --args="-c tests/examples/LFSR/LFSR.class -sc LFSR -m get_lfsr:([Z)[Z --output tests/scripts/debug/lfsr_java.aag --array-sizes 19" &&
 cd tests/scripts/ &&
-./aag2cnf.py -n debug/lfsr_java.aag -o debug/lfsr_java.cnf > /dev/null &&
-cp ../examples/LFSR/lfsr_reference_transalg.cnf debug/ &&
+./aigtoaig debug/lfsr_java.aag debug/lfsr_java.aig &&
+cp ../examples/LFSR/lfsr_reference_transalg.aig debug/ &&
+./abc -q "read debug/lfsr_java.aig ; fraig ; miter debug/lfsr_reference_transalg.aig ; fraig ; write_cnf debug/lfsr_miter.cnf" &&
 echo 'Testing equivalence of LFSR...' &&
-./check_encodings.py debug/lfsr_java.cnf debug/lfsr_reference_transalg.cnf 19 128
+./kissat -q debug/lfsr_miter.cnf | grep "UNSATISFIABLE"
