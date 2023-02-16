@@ -1,4 +1,4 @@
-package instruction_parser
+package operation_parser
 
 import boolean_logic.BooleanVariable
 import boolean_logic.Equality
@@ -13,7 +13,7 @@ import extension.times
 import extension.xor
 import parsed_types.data.VariableSat
 
-object InstructionParser {
+object OperationParser {
     @JvmStatic
     fun parseSum(
         a: VariableSat.Primitive,

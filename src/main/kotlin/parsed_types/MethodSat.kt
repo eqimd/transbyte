@@ -9,8 +9,8 @@ import constants.MutableBooleanSystem
 import exception.MethodParseException
 import exception.ParseInstructionException
 import extension.bitsSize
-import instruction_parser.InstructionParser
 import mu.KotlinLogging
+import operation_parser.OperationParser
 import org.apache.bcel.classfile.Method
 import org.apache.bcel.generic.ALOAD
 import org.apache.bcel.generic.ARETURN
@@ -122,7 +122,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
-                        val (condBit, condSystem) = InstructionParser.parseLessCondition(a, b)
+                        val (condBit, condSystem) = OperationParser.parseLessCondition(a, b)
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -133,7 +133,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
-                        val (condBit, condSystem) = InstructionParser.parseEqualsCondition(a, b)
+                        val (condBit, condSystem) = OperationParser.parseEqualsCondition(a, b)
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -143,7 +143,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
-                        val (condBit, condSystem) = InstructionParser.parseGreaterThanZero(a)
+                        val (condBit, condSystem) = OperationParser.parseGreaterThanZero(a)
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -153,7 +153,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
 
                         // reversed condition, because if original condition is true then interpreter should jump forward
-                        val (condBit, condSystem) = InstructionParser.parseEqualToZero(a)
+                        val (condBit, condSystem) = OperationParser.parseEqualToZero(a)
                         system.addAll(condSystem)
 
                         parseConditionBit(condBit)
@@ -263,7 +263,7 @@ class MethodSat(
 
                     is ICONST, is BIPUSH, is SIPUSH -> {
                         instruction as ConstantPushInstruction
-                        val (parsedBitsArray, parsedSystem) = InstructionParser.parsePush(instruction.value)
+                        val (parsedBitsArray, parsedSystem) = OperationParser.parsePush(instruction.value)
 
                         stack.addLast(parsedBitsArray)
                         system.addAll(parsedSystem)
@@ -314,7 +314,7 @@ class MethodSat(
                         val a = stack.removeLast()
                         val b = stack.removeLast()
 
-                        val (c, parseSystem) = InstructionParser.parseSum(
+                        val (c, parseSystem) = OperationParser.parseSum(
                             a as VariableSat.Primitive,
                             b as VariableSat.Primitive
                         )
@@ -327,7 +327,7 @@ class MethodSat(
                         val a = stack.removeLast()
                         val b = stack.removeLast()
 
-                        val (c, parseSystem) = InstructionParser.parseMultiply(
+                        val (c, parseSystem) = OperationParser.parseMultiply(
                             a as VariableSat.Primitive,
                             b as VariableSat.Primitive
                         )
@@ -338,9 +338,9 @@ class MethodSat(
 
                     is IINC -> {
                         val local = locals[instruction.index] as VariableSat.Primitive
-                        val incr = InstructionParser.parsePush(instruction.increment).first
+                        val incr = OperationParser.parsePush(instruction.increment).first
 
-                        val (c, parseSystem) = InstructionParser.parseSum(
+                        val (c, parseSystem) = OperationParser.parseSum(
                             local,
                             incr
                         )
@@ -353,7 +353,7 @@ class MethodSat(
                         val b = stack.removeLast() as VariableSat.Primitive
                         val a = stack.removeLast() as VariableSat.Primitive
 
-                        val (c, parseSystem) = InstructionParser.parseSubtraction(a, b)
+                        val (c, parseSystem) = OperationParser.parseSubtraction(a, b)
 
                         system.addAll(parseSystem)
                         stack.addLast(c)
@@ -363,7 +363,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
                         val b = stack.removeLast() as VariableSat.Primitive
 
-                        val (c, parseSystem) = InstructionParser.parseXor(a, b)
+                        val (c, parseSystem) = OperationParser.parseXor(a, b)
 
                         system.addAll(parseSystem)
                         stack.addLast(c)
@@ -373,7 +373,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
                         val b = stack.removeLast() as VariableSat.Primitive
 
-                        val (c, parseSystem) = InstructionParser.parseOr(a, b)
+                        val (c, parseSystem) = OperationParser.parseOr(a, b)
 
                         system.addAll(parseSystem)
                         stack.addLast(c)
@@ -383,7 +383,7 @@ class MethodSat(
                         val a = stack.removeLast() as VariableSat.Primitive
                         val b = stack.removeLast() as VariableSat.Primitive
 
-                        val (c, parseSystem) = InstructionParser.parseAnd(a, b)
+                        val (c, parseSystem) = OperationParser.parseAnd(a, b)
 
                         system.addAll(parseSystem)
                         stack.addLast(c)
