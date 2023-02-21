@@ -44,7 +44,7 @@ fun main(args: Array<String>) {
 
     val saveFilename by argParser.option(
         ArgType.String,
-        shortName = "-o",
+        shortName = "o",
         fullName = "output",
         description = "Filename for output"
     )
