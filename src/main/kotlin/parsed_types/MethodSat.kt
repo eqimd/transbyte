@@ -30,9 +30,11 @@ import org.apache.bcel.generic.IALOAD
 import org.apache.bcel.generic.IAND
 import org.apache.bcel.generic.IASTORE
 import org.apache.bcel.generic.ICONST
+import org.apache.bcel.generic.IFEQ
 import org.apache.bcel.generic.IFLE
 import org.apache.bcel.generic.IFNE
 import org.apache.bcel.generic.IF_ICMPGE
+import org.apache.bcel.generic.IF_ICMPLE
 import org.apache.bcel.generic.IF_ICMPNE
 import org.apache.bcel.generic.IINC
 import org.apache.bcel.generic.ILOAD
@@ -79,7 +81,7 @@ class MethodSat(
         class SystemWithReference(val system: BooleanSystem, val reference: VariableSat.ClassReference)
     }
 
-    private data class ConditionCopy(
+    internal data class ConditionCopy(
         val conditionBit: BooleanVariable.Bit,
         val locals: HashMap<Int, VariableSat>,
         val conditionInstructionPosition: Int,
@@ -101,20 +103,22 @@ class MethodSat(
         private var instrIndex = 0
 
         fun parse(vararg args: VariableSat): MethodParseReturnValue {
-            logger.debug { "Parsing method '$name'" }
+            logger.debug("Parsing method '$name'")
 
             parseArgs(*args)
 
             while (instrIndex < methodGen.instructionList.instructions.size) {
                 while (conditionStack.lastOrNull()?.jumpToInstructionPosition == instrIndex) {
+                    logger.debug("Processing condition stack, size before: ${conditionStack.size}")
                     locals = parseConditionLocals(conditionStack.removeLast())
+                    logger.debug("Processing condition stack, size after: ${conditionStack.size}")
                 }
 
                 val instruction = methodGen.instructionList.instructions[instrIndex]
 
-                logger.debug { "Bit scheduler positions: ${bitScheduler.currentPosition}" }
-                logger.debug { "Parsing instruction '$instruction'" }
-                logger.debug { "Instruction index: $instrIndex" }
+                logger.debug("Bit scheduler positions: ${bitScheduler.currentPosition}")
+                logger.debug("Parsing instruction '$instruction'")
+                logger.debug("Instruction index: $instrIndex")
 
                 when (instruction) {
                     is IF_ICMPGE -> {
@@ -125,6 +129,19 @@ class MethodSat(
                         val (condBit, condSystem) = OperationParser.parseLessCondition(a, b)
                         system.addAll(condSystem)
 
+                        logger.debug("Condition constants: a = ${a.constant} b = ${b.constant}")
+                        parseConditionBit(condBit)
+                    }
+
+                    is IF_ICMPLE -> {
+                        val b = stack.removeLast() as VariableSat.Primitive
+                        val a = stack.removeLast() as VariableSat.Primitive
+
+                        // reversed condition, because if original condition is true then interpreter should jump forward
+                        val (condBit, condSystem) = OperationParser.parseLessCondition(b, a)
+                        system.addAll(condSystem)
+
+                        logger.debug("Condition constants: a = ${a.constant} b = ${b.constant}")
                         parseConditionBit(condBit)
                     }
 
@@ -136,6 +153,7 @@ class MethodSat(
                         val (condBit, condSystem) = OperationParser.parseEqualsCondition(a, b)
                         system.addAll(condSystem)
 
+                        logger.debug("Condition constants: a = ${a.constant} b = ${b.constant}")
                         parseConditionBit(condBit)
                     }
 
@@ -146,6 +164,7 @@ class MethodSat(
                         val (condBit, condSystem) = OperationParser.parseGreaterThanZero(a)
                         system.addAll(condSystem)
 
+                        logger.debug("Condition constants: a = ${a.constant} b = 0")
                         parseConditionBit(condBit)
                     }
 
@@ -156,7 +175,18 @@ class MethodSat(
                         val (condBit, condSystem) = OperationParser.parseEqualToZero(a)
                         system.addAll(condSystem)
 
+                        logger.debug("Condition constants: a = ${a.constant} b = 0")
                         parseConditionBit(condBit)
+                    }
+
+                    is IFEQ -> {
+                        val a = stack.removeLast() as VariableSat.Primitive
+
+                        val (condBit, condSystem) = OperationParser.parseEqualToZero(a)
+                        system.addAll(condSystem)
+
+                        logger.debug("Condition constants: a = ${a.constant} b = 0")
+                        parseConditionBit(condBit.negated())
                     }
 
                     is GOTO -> {
@@ -164,17 +194,19 @@ class MethodSat(
                         val instrJumpIndex = methodGen.instructionList.instructionPositions.indexOf(ih.target.position)
 
                         if (instrJumpIndex < instrIndex) {
-//                            var condLast = conditionStack.removeLast()
-//                            while (condLast.conditionInstructionPosition > instrJumpIndex) {
-//                                locals = parseConditionLocals(condLast)
-//                                condLast = conditionStack.removeLastOrNull() ?: break
-//                            }
+                            if (conditionStack.isNotEmpty()) {
+                                var condLast = conditionStack.removeLast()
+                                while (condLast.conditionInstructionPosition > instrJumpIndex) {
+                                    locals = parseConditionLocals(condLast)
+                                    condLast = conditionStack.removeLastOrNull() ?: break
+                                }
+                            }
                             instrIndex = instrJumpIndex - 1
                             // Cycle detected
 
 //                        if (cycleIterationsStack.isNotEmpty()) {
 //                            val last = cycleIterationsStack.removeLast()
-//                            logger.debug { "Cycle iteration: $last" }
+//                            logger.debug("Cycle iteration: $last")
 //                            if (last > 0) {
 //                                cycleIterationsStack.addLast(last - 1)
 //                                instrIndex = instrJumpIndex - 1
@@ -242,7 +274,24 @@ class MethodSat(
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
 
                         // TODO right now it works only when index constant is known
-                        arrayRef.primitives[index.constant!!.toInt()] = value
+                        if (index.constant != null) {
+                            arrayRef.primitives[index.constant.toInt()] = value
+                        } else if (index.versions.isNotEmpty()) {
+                            logger.debug("Parsing versions for array indexing")
+                            for (v in index.versions) {
+                                logger.debug("Version constant: ${v.primitive.constant}")
+                                val (newPrim, sys) = OperationParser.parseNewPrimitiveWithCondition(
+                                    v.conditionBit,
+                                    value,
+                                    arrayRef.primitives[v.primitive.constant!!.toInt()]!!
+                                )
+                                system.addAll(sys)
+
+                                arrayRef.primitives[v.primitive.constant.toInt()] = newPrim
+                            }
+                        } else {
+                            throw ParseInstructionException("Can't parse $instruction: index constant is null and there is no versions")
+                        }
                     }
 
                     is ALOAD -> {
@@ -281,7 +330,7 @@ class MethodSat(
                         // TODO right now it works only when index is known
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
-                        logger.debug { "Index constant: ${index.constant}" }
+                        logger.debug("Index constant: ${index.constant}")
 
                         stack.addLast(
                             arrayRef.primitives[index.constant] as VariableSat
@@ -434,7 +483,7 @@ class MethodSat(
                                 stackLast
                             )
                         } else {
-                            logger.debug { "Can't return references yet" }
+                            logger.debug("Can't return references yet")
                             TODO("Can't parse ARETURN: only returning arrays supported")
                         }
                     }
@@ -466,7 +515,7 @@ class MethodSat(
                 }
 
                 is BooleanVariable.Bit -> {
-                    logger.debug { "encoding condition" }
+                    logger.debug("Encoding condition")
                     if (conditionStack.lastOrNull()?.jumpToInstructionPosition != instrIndex) {
                         conditionStack.addLast(
                             ConditionCopy(
@@ -543,68 +592,23 @@ class MethodSat(
                             continue
                         }
 
-                        val newLocal = VariableSat.Primitive.create(
-                            size = condLocal.bitsArray.size
-                        ).first
+                        val condTrueLocal: VariableSat.Primitive
+                        val condFalseLocal: VariableSat.Primitive
+                        if (conditionCopy.inElseBranch) {
+                            condTrueLocal = condLocal
+                            condFalseLocal = curLocal
+                        } else {
+                            condTrueLocal = curLocal
+                            condFalseLocal = condLocal
+                        }
+
+                        val (newLocal, condLocalsSystem) = OperationParser.parseNewPrimitiveWithCondition(
+                            conditionCopy.conditionBit,
+                            condTrueLocal,
+                            condFalseLocal,
+                        )
 
                         newLocals[key] = newLocal
-
-                        val condLocalsSystem = emptyList<Equality>().toMutableList()
-
-                        for (i in 0 until condLocal.bitsArray.size) {
-                            val condTrueBit: BooleanVariable.Bit
-                            val condFalseBit: BooleanVariable.Bit
-                            if (conditionCopy.inElseBranch) {
-                                condTrueBit = condLocal.bitsArray[i]
-                                condFalseBit = curLocal.bitsArray[i]
-                            } else {
-                                condTrueBit = curLocal.bitsArray[i]
-                                condFalseBit = condLocal.bitsArray[i]
-                            }
-
-                            /* Condition:
-                             *  x == (y and cond) or (z and not cond)
-                             *  == not ( not(y and cond) and not(z and not cond))
-                             *  == not (not A and not B)
-                             *  == not C
-                             *
-                             *  Three new bits: A, B, C
-                             */
-                            val encBits = bitScheduler.getAndShift(3)
-
-                            val lhsBit = encBits[0] // A
-                            val lhsNegatedBit = lhsBit.negated() // not A
-                            val rhsBit = encBits[1] // B
-                            val rhsNegatedBit = rhsBit.negated() // not B
-                            val fullBit = encBits[2] // C
-                            val fullNegatedBit = fullBit.negated()
-
-                            val negatedConditionCopyBit = conditionCopy.conditionBit.negated()
-
-                            condLocalsSystem.addAll(
-                                listOf(
-                                    Equality(
-                                        lhsBit,
-                                        condTrueBit,
-                                        conditionCopy.conditionBit
-                                    ),
-                                    Equality(
-                                        rhsBit,
-                                        condFalseBit,
-                                        negatedConditionCopyBit
-                                    ),
-                                    Equality(
-                                        fullBit,
-                                        lhsNegatedBit,
-                                        rhsNegatedBit
-                                    ),
-                                    Equality(
-                                        newLocal.bitsArray[i],
-                                        fullNegatedBit
-                                    )
-                                )
-                            )
-                        }
 
                         system.addAll(condLocalsSystem)
                     }
@@ -620,61 +624,23 @@ class MethodSat(
                             val curLocalPrim = curLocal.primitives[k]!!
 
                             if (condLocalPrim.bitsArray.first() != curLocalPrim.bitsArray.first()) {
-                                val newPrim = VariableSat.Primitive.create(
-                                    size = curLocalPrim.bitsArray.size
-                                ).first
+                                val condTrueLocal: VariableSat.Primitive
+                                val condFalseLocal: VariableSat.Primitive
+                                if (conditionCopy.inElseBranch) {
+                                    condTrueLocal = condLocalPrim
+                                    condFalseLocal = curLocalPrim
+                                } else {
+                                    condTrueLocal = curLocalPrim
+                                    condFalseLocal = condLocalPrim
+                                }
+
+                                val (newPrim, condLocalsSystem) = OperationParser.parseNewPrimitiveWithCondition(
+                                    conditionCopy.conditionBit,
+                                    condTrueLocal,
+                                    condFalseLocal,
+                                )
 
                                 newLocal.primitives[k] = newPrim
-
-                                val condLocalsSystem = emptyList<Equality>().toMutableList()
-
-                                for (i in 0 until condLocalPrim.bitsArray.size) {
-                                    val condTrueBit: BooleanVariable.Bit
-                                    val condFalseBit: BooleanVariable.Bit
-                                    if (conditionCopy.inElseBranch) {
-                                        condTrueBit = condLocalPrim.bitsArray[i]
-                                        condFalseBit = curLocalPrim.bitsArray[i]
-                                    } else {
-                                        condTrueBit = curLocalPrim.bitsArray[i]
-                                        condFalseBit = condLocalPrim.bitsArray[i]
-                                    }
-
-                                    // Same logic as above
-                                    val encBits = bitScheduler.getAndShift(3)
-
-                                    val lhsBit = encBits[0] // A
-                                    val lhsNegatedBit = lhsBit.negated() // not A
-                                    val rhsBit = encBits[1] // B
-                                    val rhsNegatedBit = rhsBit.negated() // not B
-                                    val fullBit = encBits[2] // C
-                                    val fullNegatedBit = fullBit.negated()
-
-                                    val negatedConditionCopyBit = conditionCopy.conditionBit.negated()
-
-                                    condLocalsSystem.addAll(
-                                        listOf(
-                                            Equality(
-                                                lhsBit,
-                                                condTrueBit,
-                                                conditionCopy.conditionBit
-                                            ),
-                                            Equality(
-                                                rhsBit,
-                                                condFalseBit,
-                                                negatedConditionCopyBit
-                                            ),
-                                            Equality(
-                                                fullBit,
-                                                lhsNegatedBit,
-                                                rhsNegatedBit
-                                            ),
-                                            Equality(
-                                                newPrim.bitsArray[i],
-                                                fullNegatedBit
-                                            )
-                                        )
-                                    )
-                                }
 
                                 system.addAll(condLocalsSystem)
                             }

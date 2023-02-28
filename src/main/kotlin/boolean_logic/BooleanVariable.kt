@@ -1,17 +1,25 @@
 package boolean_logic
 
 sealed interface BooleanVariable {
+    fun negated(): BooleanVariable
+
     data class Bit(val bitNumber: Long, val isNegated: Boolean = false) : BooleanVariable {
         override fun toString(): String =
             (if (isNegated) "-" else "") + bitNumber
 
-        fun negated(): Bit =
+        override fun negated(): Bit =
             Bit(bitNumber, !isNegated)
     }
 
     enum class Constant(val value: Boolean) : BooleanVariable {
-        TRUE(true),
-        FALSE(false);
+        TRUE(true) {
+            override fun negated(): Constant =
+                FALSE
+        },
+        FALSE(false) {
+            override fun negated(): Constant =
+                TRUE
+        };
 
         companion object {
             fun getByBoolean(value: Boolean): Constant =

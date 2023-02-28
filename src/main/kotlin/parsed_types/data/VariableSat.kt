@@ -9,6 +9,9 @@ import parsed_types.ClassSat
 
 sealed interface VariableSat {
     class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : VariableSat {
+
+        val versions: MutableList<PrimitiveVersion> = mutableListOf()
+
         companion object {
             fun create(size: Int, constant: Number? = null): Pair<Primitive, BooleanSystem> {
                 val primitiveConstants = GlobalSettings.primitiveConstants
@@ -50,7 +53,11 @@ sealed interface VariableSat {
             var primitives = HashMap<Int, Primitive>()
 
             companion object {
-                fun create(size: Int? = null, primitiveSize: Int, constant: Number? = null): Pair<ArrayReference, BooleanSystem> {
+                fun create(
+                    size: Int? = null,
+                    primitiveSize: Int,
+                    constant: Number? = null
+                ): Pair<ArrayReference, BooleanSystem> {
                     val arrayOfPrimitives = ArrayOfPrimitives(size, primitiveSize)
                     val parseSystem = emptyList<Equality>().toMutableList()
 

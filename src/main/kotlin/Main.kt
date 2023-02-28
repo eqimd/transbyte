@@ -74,6 +74,6 @@ fun main(args: Array<String>) {
 
     val logger = KotlinLogging.logger {}
     for (eq in circuit.system) {
-        logger.debug { eq }
+        logger.debug(eq.toString())
     }
 }

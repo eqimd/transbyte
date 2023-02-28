@@ -35,7 +35,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
         methodDescription: String,
         vararg args: VariableSat
     ): EncodingCircuit {
-        logger.debug { "Translating method '$methodDescription' of class '$className'" }
+        logger.debug("Translating method '$methodDescription' of class '$className'")
         val classSat = classSatMap[className]!!
         val methodSat = classSat.getMethodByDescription(methodDescription)
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")

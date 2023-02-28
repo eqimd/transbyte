@@ -11,6 +11,7 @@ import extension.or
 import extension.plus
 import extension.times
 import extension.xor
+import parsed_types.data.PrimitiveVersion
 import parsed_types.data.VariableSat
 
 object OperationParser {
@@ -792,5 +793,99 @@ object OperationParser {
         }
 
         return Pair(retBit, system)
+    }
+
+    @JvmStatic
+    fun parseNewPrimitiveWithCondition(
+        conditionBit: BooleanVariable.Bit,
+        condTruePrimitive: VariableSat.Primitive,
+        condFalsePrimitive: VariableSat.Primitive,
+    ): Pair<VariableSat.Primitive, BooleanSystem> {
+        val bitScheduler = GlobalSettings.bitScheduler
+
+        val newPrimitive = VariableSat.Primitive.create(
+            size = condFalsePrimitive.bitsArray.size
+        ).first
+
+        val condLocalsSystem = emptyList<Equality>().toMutableList()
+
+        val negatedConditionBit = conditionBit.negated()
+
+        if (condTruePrimitive.constant != null) {
+            newPrimitive.versions.add(
+                PrimitiveVersion(condTruePrimitive, conditionBit)
+            )
+        } else {
+            for (v in condTruePrimitive.versions) {
+                val encBit = bitScheduler.getAndShift(1).first()
+                condLocalsSystem.add(
+                    Equality(encBit, v.conditionBit, conditionBit)
+                )
+                newPrimitive.versions.add(
+                    PrimitiveVersion(v.primitive, encBit)
+                )
+            }
+        }
+
+        if (condFalsePrimitive.constant != null) {
+            newPrimitive.versions.add(
+                PrimitiveVersion(condFalsePrimitive, negatedConditionBit)
+            )
+        } else {
+            for (v in condFalsePrimitive.versions) {
+                val encBit = bitScheduler.getAndShift(1).first()
+                condLocalsSystem.add(
+                    Equality(encBit, v.conditionBit, negatedConditionBit)
+                )
+                newPrimitive.versions.add(
+                    PrimitiveVersion(v.primitive, encBit)
+                )
+            }
+        }
+
+        for (i in 0 until condFalsePrimitive.bitsArray.size) {
+            /* Condition:
+             *  x == (y and cond) or (z and not cond)
+             *  == not ( not(y and cond) and not(z and not cond))
+             *  == not (not A and not B)
+             *  == not C
+             *
+             *  Three new bits: A, B, C
+             */
+            val encBits = bitScheduler.getAndShift(3)
+
+            val lhsBit = encBits[0] // A
+            val lhsNegatedBit = lhsBit.negated() // not A
+            val rhsBit = encBits[1] // B
+            val rhsNegatedBit = rhsBit.negated() // not B
+            val fullBit = encBits[2] // C
+            val fullNegatedBit = fullBit.negated()
+
+            condLocalsSystem.addAll(
+                listOf(
+                    Equality(
+                        lhsBit,
+                        condTruePrimitive.bitsArray[i],
+                        conditionBit
+                    ),
+                    Equality(
+                        rhsBit,
+                        condFalsePrimitive.bitsArray[i],
+                        negatedConditionBit
+                    ),
+                    Equality(
+                        fullBit,
+                        lhsNegatedBit,
+                        rhsNegatedBit
+                    ),
+                    Equality(
+                        newPrimitive.bitsArray[i],
+                        fullNegatedBit
+                    )
+                )
+            )
+        }
+
+        return Pair(newPrimitive, condLocalsSystem)
     }
 }
