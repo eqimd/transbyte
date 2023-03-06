@@ -279,15 +279,15 @@ class MethodSat(
                         } else if (index.versions.isNotEmpty()) {
                             logger.debug("Parsing versions for array indexing")
                             for (v in index.versions) {
-                                logger.debug("Version constant: ${v.primitive.constant}")
+                                logger.debug("Version constant: ${v.constant}")
                                 val (newPrim, sys) = OperationParser.parseNewPrimitiveWithCondition(
                                     v.conditionBit,
                                     value,
-                                    arrayRef.primitives[v.primitive.constant!!.toInt()]!!
+                                    arrayRef.primitives[v.constant.toInt()]!!
                                 )
                                 system.addAll(sys)
 
-                                arrayRef.primitives[v.primitive.constant.toInt()] = newPrim
+                                arrayRef.primitives[v.constant.toInt()] = newPrim
                             }
                         } else {
                             throw ParseInstructionException("Can't parse $instruction: index constant is null and there is no versions")
@@ -328,13 +328,52 @@ class MethodSat(
 
                     is BALOAD, is IALOAD -> {
                         // TODO right now it works only when index is known
+                        // TODO primitive versions encoding
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
                         logger.debug("Index constant: ${index.constant}")
 
-                        stack.addLast(
-                            arrayRef.primitives[index.constant] as VariableSat
-                        )
+                        if (index.constant != null) {
+                            stack.addLast(
+                                arrayRef.primitives[index.constant] as VariableSat
+                            )
+                        } else if (index.versions.isNotEmpty()) {
+                            val newPrim = VariableSat.Primitive.create(arrayRef.primitiveSize).first
+
+                            for (i in 0 until newPrim.bitsArray.size) {
+                                logger.debug("Versions: ${index.versions.map { it.constant }}")
+                                val possibleBits = index.versions.map {
+                                    val conjBit = bitScheduler.getAndShift(1).first()
+                                    logger.debug("Possible bits constant: ${it.constant}")
+                                    system.add(
+                                        Equality(
+                                            conjBit,
+                                            arrayRef.primitives[it.constant]!!.bitsArray[i],
+                                            it.conditionBit
+                                        )
+                                    )
+
+                                    conjBit
+                                }
+
+                                val finalBit = possibleBits.reduce { b1, b2 ->
+                                    val (disjBit, disjSys) = OperationParser.parseDisjunctionBits(b1, b2)
+                                    system.addAll(disjSys)
+                                    disjBit
+                                }
+
+                                system.add(
+                                    Equality(
+                                        newPrim.bitsArray[i],
+                                        finalBit
+                                    )
+                                )
+                            }
+
+                            stack.addLast(newPrim)
+                        } else {
+                            throw ParseInstructionException("Can't parse $instruction: index constant is null and there is no versions")
+                        }
                     }
 
                     is NEWARRAY -> {
@@ -387,7 +426,8 @@ class MethodSat(
 
                     is IINC -> {
                         val local = locals[instruction.index] as VariableSat.Primitive
-                        val incr = OperationParser.parsePush(instruction.increment).first
+                        val (incr, incrSys) = OperationParser.parsePush(instruction.increment)
+                        system.addAll(incrSys)
 
                         val (c, parseSystem) = OperationParser.parseSum(
                             local,

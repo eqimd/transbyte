@@ -10,7 +10,7 @@ import parsed_types.ClassSat
 sealed interface VariableSat {
     class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : VariableSat {
 
-        val versions: MutableList<PrimitiveVersion> = mutableListOf()
+        val versions: MutableSet<PrimitiveVersion> = mutableSetOf()
 
         companion object {
             fun create(size: Int, constant: Number? = null): Pair<Primitive, BooleanSystem> {

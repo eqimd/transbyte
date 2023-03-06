@@ -4,6 +4,12 @@ import exception.NotSupportedOperationOnNumbersException
 
 operator fun Number.plus(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() + constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() + constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() + constant.toInt()
         }
@@ -17,6 +23,12 @@ operator fun Number.plus(constant: Number): Number =
 
 operator fun Number.times(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() * constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() * constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() * constant.toInt()
         }
@@ -30,6 +42,12 @@ operator fun Number.times(constant: Number): Number =
 
 operator fun Number.minus(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() - constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() - constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() - constant.toInt()
         }
@@ -43,6 +61,12 @@ operator fun Number.minus(constant: Number): Number =
 
 infix fun Number.xor(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() xor constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() xor constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() xor constant.toInt()
         }
@@ -56,6 +80,12 @@ infix fun Number.xor(constant: Number): Number =
 
 infix fun Number.or(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() or constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() or constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() or constant.toInt()
         }
@@ -69,6 +99,12 @@ infix fun Number.or(constant: Number): Number =
 
 infix fun Number.and(constant: Number): Number =
     when {
+        (this is Byte && constant is Byte) -> {
+            this.toByte() and constant.toByte()
+        }
+        (this is Short && constant is Short) -> {
+            this.toShort() and constant.toShort()
+        }
         (this is Int && constant is Int) -> {
             this.toInt() and constant.toInt()
         }
