@@ -273,7 +273,7 @@ class MethodSat(
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
 
-                        // TODO right now it works only when index constant is known
+                        // TODO right now it works only when index constant is known or versions set is not empty
                         if (index.constant != null) {
                             arrayRef.primitives[index.constant.toInt()] = value
                         } else if (index.versions.isNotEmpty()) {
@@ -327,8 +327,7 @@ class MethodSat(
                     }
 
                     is BALOAD, is IALOAD -> {
-                        // TODO right now it works only when index is known
-                        // TODO primitive versions encoding
+                        // TODO right now it works only when index is known or versions set is not empty
                         val index = stack.removeLast() as VariableSat.Primitive
                         val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
                         logger.debug("Index constant: ${index.constant}")

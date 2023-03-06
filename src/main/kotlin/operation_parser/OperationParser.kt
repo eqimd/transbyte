@@ -756,7 +756,6 @@ object OperationParser {
         val bitScheduler = GlobalSettings.bitScheduler
 
         val system = emptyList<Equality>().toMutableList()
-        // TODO maybe .constant.toInt() is enough
         if (a.constant != null && b.constant != null) {
             return Pair(
                 BooleanVariable.Constant.getByBoolean(a.constant.toLong() < b.constant.toLong()),
@@ -812,7 +811,6 @@ object OperationParser {
         val bitScheduler = GlobalSettings.bitScheduler
 
         val system = emptyList<Equality>().toMutableList()
-        // TODO maybe .constant.toInt() is enough
         if (a.constant != null && b.constant != null) {
             val bit = bitScheduler.getAndShift(1).first()
             system.add(

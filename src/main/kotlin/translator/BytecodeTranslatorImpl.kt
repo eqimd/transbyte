@@ -79,7 +79,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                     }
                     else -> {
                         logger.error { "ReferenceType is not supported for translation yet" }
-                        TODO()
+                        TODO("ReferenceType is not supported for translation yet")
                     }
                 }
             }
@@ -106,9 +106,6 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                         .flatten()
 
                 EncodingCircuit(inputBits, outputBits, circuitSystem)
-            }
-            else -> {
-                TODO("Not supported yet")
             }
         }
     }
