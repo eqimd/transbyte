@@ -44,8 +44,8 @@ object OperationParser {
         )
         val c = cPrim.bitsArray
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key + bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -57,25 +57,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    cPrim.versions.add(newConst, newCondBit)
+                    cPrim.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key + a.constant
                 system.addAll(
-                    cPrim.versions.add(newConst, bVer.value)
+                    cPrim.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key + b.constant
                 system.addAll(
-                    cPrim.versions.add(newConst, aVer.value)
+                    cPrim.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -246,8 +246,8 @@ object OperationParser {
         )
         val c = cPrim.bitsArray
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key * bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -259,25 +259,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    cPrim.versions.add(newConst, newCondBit)
+                    cPrim.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key * a.constant
                 system.addAll(
-                    cPrim.versions.add(newConst, bVer.value)
+                    cPrim.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key * b.constant
                 system.addAll(
-                    cPrim.versions.add(newConst, aVer.value)
+                    cPrim.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -449,10 +449,10 @@ object OperationParser {
         val (c, sumSystem) = parseSum(a, bInvertedPlusOne)
         system.addAll(sumSystem)
 
-        c.versions.clear()
+        c.clearVersions()
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key - bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -464,25 +464,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    c.versions.add(newConst, newCondBit)
+                    c.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key - a.constant
                 system.addAll(
-                    c.versions.add(newConst, bVer.value)
+                    c.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key - b.constant
                 system.addAll(
-                    c.versions.add(newConst, aVer.value)
+                    c.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -565,8 +565,8 @@ object OperationParser {
         )
         val cArr = c.bitsArray
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key and bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -578,25 +578,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    c.versions.add(newConst, newCondBit)
+                    c.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key and a.constant
                 system.addAll(
-                    c.versions.add(newConst, bVer.value)
+                    c.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key and b.constant
                 system.addAll(
-                    c.versions.add(newConst, aVer.value)
+                    c.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -642,8 +642,8 @@ object OperationParser {
         )
         val cArr = c.bitsArray
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key or bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -655,25 +655,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    c.versions.add(newConst, newCondBit)
+                    c.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key or a.constant
                 system.addAll(
-                    c.versions.add(newConst, bVer.value)
+                    c.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key or b.constant
                 system.addAll(
-                    c.versions.add(newConst, aVer.value)
+                    c.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -720,8 +720,8 @@ object OperationParser {
         )
         val cArr = c.bitsArray
 
-        for (aVer in a.versions.versionsMap) {
-            for (bVer in b.versions.versionsMap) {
+        for (aVer in a.versions) {
+            for (bVer in b.versions) {
                 val newConst = aVer.key and bVer.key
                 val newCondBit = bitScheduler.getAndShift(1).first()
                 system.add(
@@ -733,25 +733,25 @@ object OperationParser {
                 )
 
                 system.addAll(
-                    c.versions.add(newConst, newCondBit)
+                    c.addVersion(newConst, newCondBit)
                 )
             }
         }
 
         if (a.constant != null) {
-            for (bVer in b.versions.versionsMap) {
+            for (bVer in b.versions) {
                 val newConst = bVer.key and a.constant
                 system.addAll(
-                    c.versions.add(newConst, bVer.value)
+                    c.addVersion(newConst, bVer.value)
                 )
             }
         }
 
         if (b.constant != null) {
-            for (aVer in a.versions.versionsMap) {
+            for (aVer in a.versions) {
                 val newConst = aVer.key * b.constant
                 system.addAll(
-                    c.versions.add(newConst, aVer.value)
+                    c.addVersion(newConst, aVer.value)
                 )
             }
         }
@@ -905,8 +905,8 @@ object OperationParser {
 
         // a > 0
         val system = emptyList<Equality>().toMutableList()
-        if (a.versions.versionsMap.isNotEmpty()) {
-            return if (a.versions.versionsMap.all { it.key.toInt() > 0 }) {
+        if (a.versions.isNotEmpty()) {
+            return if (a.versions.all { it.key.toInt() > 0 }) {
                 Pair(BooleanVariable.Constant.TRUE, system)
             } else {
                 Pair(BooleanVariable.Constant.FALSE, system)
@@ -1045,32 +1045,32 @@ object OperationParser {
 
         if (condTruePrimitive.constant != null) {
             condLocalsSystem.addAll(
-                newPrimitive.versions.add(condTruePrimitive.constant, conditionBit)
+                newPrimitive.addVersion(condTruePrimitive.constant, conditionBit)
             )
         } else {
-            for (v in condTruePrimitive.versions.versionsMap) {
+            for (v in condTruePrimitive.versions) {
                 val encBit = bitScheduler.getAndShift(1).first()
                 condLocalsSystem.add(
                     Equality(encBit, v.value, conditionBit)
                 )
                 condLocalsSystem.addAll(
-                    newPrimitive.versions.add(v.key, encBit)
+                    newPrimitive.addVersion(v.key, encBit)
                 )
             }
         }
 
         if (condFalsePrimitive.constant != null) {
             condLocalsSystem.addAll(
-                newPrimitive.versions.add(condFalsePrimitive.constant, negatedConditionBit)
+                newPrimitive.addVersion(condFalsePrimitive.constant, negatedConditionBit)
             )
         } else {
-            for (v in condFalsePrimitive.versions.versionsMap) {
+            for (v in condFalsePrimitive.versions) {
                 val encBit = bitScheduler.getAndShift(1).first()
                 condLocalsSystem.add(
                     Equality(encBit, v.value, negatedConditionBit)
                 )
                 condLocalsSystem.addAll(
-                    newPrimitive.versions.add(v.key, encBit)
+                    newPrimitive.addVersion(v.key, encBit)
                 )
             }
         }

@@ -319,9 +319,9 @@ class MethodSat(
                         // TODO right now it works only when index constant is known or versions set is not empty
                         if (index.constant != null) {
                             arrayRef.primitives[index.constant.toInt()] = value
-                        } else if (index.versions.versionsMap.isNotEmpty()) {
+                        } else if (index.versions.isNotEmpty()) {
                             logger.debug("Parsing versions for array indexing")
-                            for (v in index.versions.versionsMap) {
+                            for (v in index.versions) {
                                 logger.debug("Version constant: ${v.key}")
                                 val (newPrim, sys) = OperationParser.parseNewPrimitiveWithCondition(
                                     v.value,
@@ -379,13 +379,13 @@ class MethodSat(
                             stack.addLast(
                                 arrayRef.primitives[index.constant] as VariableSat
                             )
-                        } else if (index.versions.versionsMap.isNotEmpty()) {
+                        } else if (index.versions.isNotEmpty()) {
                             val newPrim = VariableSat.Primitive.create(arrayRef.primitiveSize).first
 
                             for (i in 0 until newPrim.bitsArray.size) {
-                                logger.debug("Versions: ${index.versions.versionsMap.map { it.key }}")
+                                logger.debug("Versions: ${index.versions.map { it.key }}")
 
-                                val possibleBits = index.versions.versionsMap.map {
+                                val possibleBits = index.versions.map {
                                     val conjBit = bitScheduler.getAndShift(1).first()
                                     logger.debug("Possible bits constant: ${it.key}")
                                     system.add(

@@ -5,12 +5,14 @@ import boolean_logic.Equality
 import constants.BitsArray
 import constants.BooleanSystem
 import constants.GlobalSettings
+import operation_parser.OperationParser
 import parsed_types.ClassSat
 
 sealed interface VariableSat {
     class Primitive private constructor(val bitsArray: BitsArray, val constant: Number? = null) : VariableSat {
 
-        val versions = PrimitiveVersions()
+        private val _versionsMap: MutableMap<Number, BooleanVariable.Bit> = mutableMapOf()
+        val versions: Map<Number, BooleanVariable.Bit> = _versionsMap
 
         companion object {
             fun create(size: Int, constant: Number? = null): Pair<Primitive, BooleanSystem> {
@@ -45,6 +47,23 @@ sealed interface VariableSat {
 
                 return Pair(primitive, parseSystem)
             }
+        }
+
+        fun addVersion(number: Number, bit: BooleanVariable.Bit): BooleanSystem {
+            return if (_versionsMap.containsKey(number)) {
+                val (newBit, sys) = OperationParser.parseDisjunctionBits(bit, _versionsMap[number]!!)
+                _versionsMap[number] = newBit
+
+                sys
+            } else {
+                _versionsMap[number] = bit
+
+                emptyList()
+            }
+        }
+
+        fun clearVersions() {
+            _versionsMap.clear()
         }
     }
 
