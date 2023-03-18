@@ -32,8 +32,11 @@ import org.apache.bcel.generic.IASTORE
 import org.apache.bcel.generic.ICONST
 import org.apache.bcel.generic.IFEQ
 import org.apache.bcel.generic.IFLE
+import org.apache.bcel.generic.IFLT
 import org.apache.bcel.generic.IFNE
+import org.apache.bcel.generic.IF_ICMPEQ
 import org.apache.bcel.generic.IF_ICMPGE
+import org.apache.bcel.generic.IF_ICMPGT
 import org.apache.bcel.generic.IF_ICMPLE
 import org.apache.bcel.generic.IF_ICMPNE
 import org.apache.bcel.generic.IINC
@@ -133,6 +136,31 @@ class MethodSat(
                         parseConditionBit(condBit)
                     }
 
+                    is IF_ICMPGT -> {
+                        val b = stack.removeLast() as VariableSat.Primitive
+                        val a = stack.removeLast() as VariableSat.Primitive
+
+                        // reversed condition, because if original condition is true then interpreter should jump forward
+                        val (condBit, condSystem) = OperationParser.parseLessOrEqualCondition(a, b)
+                        system.addAll(condSystem)
+
+                        logger.debug("Condition constants: a = ${a.constant} b = ${b.constant}")
+                        parseConditionBit(condBit)
+                    }
+
+                    is IF_ICMPEQ -> {
+                        val b = stack.removeLast() as VariableSat.Primitive
+                        val a = stack.removeLast() as VariableSat.Primitive
+
+                        // Condition is not reversed, but we should parse negated condition bit
+                        val (condBit, condSystem) = OperationParser.parseEqualsCondition(a, b)
+                        system.addAll(condSystem)
+
+                        logger.debug("Condition constants: a = ${a.constant} b = ${b.constant}")
+
+                        parseConditionBit(condBit.negated())
+                    }
+
                     is IF_ICMPLE -> {
                         val b = stack.removeLast() as VariableSat.Primitive
                         val a = stack.removeLast() as VariableSat.Primitive
@@ -168,6 +196,19 @@ class MethodSat(
                         parseConditionBit(condBit)
                     }
 
+                    is IFLT -> {
+                        val a = stack.removeLast() as VariableSat.Primitive
+
+                        val (zero, sys) = VariableSat.Primitive.create(Int.SIZE_BITS, 0)
+                        system.addAll(sys)
+
+                        val (condBit, condSystem) = OperationParser.parseLessOrEqualCondition(zero, a)
+                        system.addAll(condSystem)
+
+                        logger.debug("Condition constants: a = ${a.constant} b = 0")
+                        parseConditionBit(condBit)
+                    }
+
                     is IFNE -> {
                         val a = stack.removeLast() as VariableSat.Primitive
 
@@ -197,6 +238,7 @@ class MethodSat(
                             if (conditionStack.isNotEmpty()) {
                                 var condLast = conditionStack.removeLast()
                                 while (condLast.conditionInstructionPosition > instrJumpIndex) {
+                                    logger.debug("Processing condition stack inside GOTO")
                                     locals = parseConditionLocals(condLast)
                                     condLast = conditionStack.removeLastOrNull() ?: break
                                 }
@@ -238,6 +280,7 @@ class MethodSat(
                         } else {
                             // Next instructions will be from else-branch
                             if (conditionStack.isNotEmpty()) {
+                                logger.debug("New condition in else-branch")
                                 val condCopy = conditionStack.removeLast()
 
                                 val newCond = ConditionCopy(
@@ -276,18 +319,18 @@ class MethodSat(
                         // TODO right now it works only when index constant is known or versions set is not empty
                         if (index.constant != null) {
                             arrayRef.primitives[index.constant.toInt()] = value
-                        } else if (index.versions.isNotEmpty()) {
+                        } else if (index.versions.versionsMap.isNotEmpty()) {
                             logger.debug("Parsing versions for array indexing")
-                            for (v in index.versions) {
-                                logger.debug("Version constant: ${v.constant}")
+                            for (v in index.versions.versionsMap) {
+                                logger.debug("Version constant: ${v.key}")
                                 val (newPrim, sys) = OperationParser.parseNewPrimitiveWithCondition(
-                                    v.conditionBit,
+                                    v.value,
                                     value,
-                                    arrayRef.primitives[v.constant.toInt()]!!
+                                    arrayRef.primitives[v.key.toInt()]!!
                                 )
                                 system.addAll(sys)
 
-                                arrayRef.primitives[v.constant.toInt()] = newPrim
+                                arrayRef.primitives[v.key.toInt()] = newPrim
                             }
                         } else {
                             throw ParseInstructionException("Can't parse $instruction: index constant is null and there is no versions")
@@ -336,19 +379,20 @@ class MethodSat(
                             stack.addLast(
                                 arrayRef.primitives[index.constant] as VariableSat
                             )
-                        } else if (index.versions.isNotEmpty()) {
+                        } else if (index.versions.versionsMap.isNotEmpty()) {
                             val newPrim = VariableSat.Primitive.create(arrayRef.primitiveSize).first
 
                             for (i in 0 until newPrim.bitsArray.size) {
-                                logger.debug("Versions: ${index.versions.map { it.constant }}")
-                                val possibleBits = index.versions.map {
+                                logger.debug("Versions: ${index.versions.versionsMap.map { it.key }}")
+
+                                val possibleBits = index.versions.versionsMap.map {
                                     val conjBit = bitScheduler.getAndShift(1).first()
-                                    logger.debug("Possible bits constant: ${it.constant}")
+                                    logger.debug("Possible bits constant: ${it.key}")
                                     system.add(
                                         Equality(
                                             conjBit,
-                                            arrayRef.primitives[it.constant]!!.bitsArray[i],
-                                            it.conditionBit
+                                            arrayRef.primitives[it.key]!!.bitsArray[i],
+                                            it.value
                                         )
                                     )
 
@@ -641,6 +685,7 @@ class MethodSat(
                             condFalseLocal = condLocal
                         }
 
+                        logger.debug("Parsing new primitive with condition")
                         val (newLocal, condLocalsSystem) = OperationParser.parseNewPrimitiveWithCondition(
                             conditionCopy.conditionBit,
                             condTrueLocal,
@@ -673,6 +718,7 @@ class MethodSat(
                                     condFalseLocal = condLocalPrim
                                 }
 
+                                logger.debug("Parsing new primitive with condition (inside array of primitives)")
                                 val (newPrim, condLocalsSystem) = OperationParser.parseNewPrimitiveWithCondition(
                                     conditionCopy.conditionBit,
                                     condTrueLocal,

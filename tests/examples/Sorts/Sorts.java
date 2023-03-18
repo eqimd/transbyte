@@ -146,4 +146,78 @@ public class Sorts {
 
         return data;
     }
+
+    public static void pancakeSortFlip(int p, int[] data) {
+        for (int i = 0; i < p; i++) {
+            p--;
+            int tmp = data[i];
+            data[i] = data[p];
+            data[p] = tmp;
+        }
+    }
+
+    public static int[] pancakeSortLikeTransalg(int[] data) {
+        int k = data.length;
+
+        for (int i = k - 1; i >= 0; i--) {
+            int max = 0;
+
+            for (int j = 1;  j <= i; j++) {
+                for (int d = 0; d <= i; d++) {
+                    if ((max == d) && (data[d] < data[j])) {
+                        max = j;
+                    }
+                }
+            }
+
+            for (int t = 1; t < i; t++) {
+                if (max == t) {
+                    pancakeSortFlip(t + 1, data);
+                }
+            }
+
+            if (max != i) {
+                pancakeSortFlip(i + 1, data);
+            }
+        }
+
+        return data;
+    }
+
+    public static void pancakeSortBytesFlip(int p, byte[] data) {
+        for (int i = 0; i < p; i++) {
+            p--;
+            byte tmp = data[i];
+            data[i] = data[p];
+            data[p] = tmp;
+        }
+    }
+
+    public static byte[] pancakeSortBytesLikeTransalg(byte[] data) {
+        int k = data.length;
+
+        for (int i = k - 1; i >= 0; i--) {
+            int max = 0;
+
+            for (int j = 1;  j <= i; j++) {
+                for (int d = 0; d <= i; d++) {
+                    if ((max == d) && (data[d] < data[j])) {
+                        max = j;
+                    }
+                }
+            }
+
+            for (int t = 1; t < i; t++) {
+                if (max == t) {
+                    pancakeSortBytesFlip(t + 1, data);
+                }
+            }
+
+            if (max != i) {
+                pancakeSortBytesFlip(i + 1, data);
+            }
+        }
+
+        return data;
+    }
 }
