@@ -77,3 +77,12 @@ jobs:
 
       - name: Test Wolfram Generator
         run: bash ./tests/scripts/test_wolfram.sh
+
+      - name: Test Bubble Sort
+        run: bash ./tests/scripts/test_bubble_sort.sh
+
+      - name: Test Selection Sort
+        run: bash ./tests/scripts/test_selection_sort.sh
+
+      - name: Test Insertion Sort
+        run: bash ./tests/scripts/test_insertion_sort.sh

@@ -8,4 +8,7 @@ chmod +x test_sum.sh &&
 chmod +x test_mult.sh &&
 chmod +x test_lfsr.sh &&
 chmod +x test_a5_1.sh &&
-chmod +x test_wolfram.sh
+chmod +x test_wolfram.sh &&
+chmod +x test_selection_sort.sh &&
+chmod +x test_insertion_sort.sh &&
+chmod +x test_bubble_sort.sh

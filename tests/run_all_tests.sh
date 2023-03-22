@@ -5,4 +5,7 @@ cd scripts &&
 ./test_mult.sh &&
 ./test_lfsr.sh &&
 ./test_a5_1.sh &&
-./test_wolfram.sh
+./test_wolfram.sh &&
+./test_selection_sort.sh &&
+./test_insertion_sort.sh &&
+./test_bubble_sort.sh

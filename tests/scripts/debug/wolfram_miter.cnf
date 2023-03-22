@@ -1,5 +1,0 @@
-c Result of efficient AIG-to-CNF conversion using package CNF
-p cnf 130 2
--130 0
-130 0
-
