@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - "*"
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone Repo
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+
+      - name: Build
+        run: bash ./gradlew build
+
+  ktlint:
+    name: Run ktlint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Clone Repo
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+
+      - name: Run ktlint
+        run: bash ./gradlew ktlintCheck --stacktrace
+
+  tests:
+    name: Run tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - run: /bin/python3 -m pip install toposort
+
+      - name: Clone Repo
+        uses: actions/checkout@v2
+
+      - name: Set up JDK 11
+        uses: actions/setup-java@v1
+        with:
+          java-version: 11
+
+      - name: Build
+        run: bash ./gradlew build
+
+      - name: Configure
+        run: bash ./tests/configure.sh
+
+      - name: Test sum
+        run: bash ./tests/scripts/test_sum.sh
+
+      - name: Test multiply
+        run: bash ./tests/scripts/test_mult.sh
+
+      - name: Test LFSR
+        run: bash ./tests/scripts/test_lfsr.sh
+
+      - name: Test A5/1
+        run: bash ./tests/scripts/test_a5_1.sh
+
+      - name: Test Wolfram Generator
+        run: bash ./tests/scripts/test_wolfram.sh
+
+      - name: Test Bubble Sort
+        run: bash ./tests/scripts/test_bubble_sort.sh
+
+      - name: Test Selection Sort
+        run: bash ./tests/scripts/test_selection_sort.sh
+
+      - name: Test Insertion Sort
+        run: bash ./tests/scripts/test_insertion_sort.sh
+
+      - name: Test Pancake Sort
+        run: bash ./tests/scripts/test_pancake_sort.sh
