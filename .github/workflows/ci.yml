@@ -86,3 +86,6 @@ jobs:
 
       - name: Test Insertion Sort
         run: bash ./tests/scripts/test_insertion_sort.sh
+
+      - name: Test Pancake Sort
+        run: bash ./tests/scripts/test_pancake_sort.sh
