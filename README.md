@@ -75,8 +75,8 @@ class SumLength {
 You can encode your function by following a few steps.
 
 1. Suppose you have a `C.java` file with class `C` inside. Compile it with `javac`. Now you have a class file `C.class`
-2. Pass it to `transbyte` with the necessary parameters. Now you have encoding in `.aag` (ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger) format)
-   * You can convert it to binary `.aig` format (which is used in SAT-solvers) using [aigtoaig](https://github.com/arminbiere/aiger) tool
+2. Pass it to `transbyte` with the necessary parameters. Now you have encoding in `.aag` (ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger)) format
+   * You can convert it to binary `.aig` format (which is used in various tools) using [aigtoaig](https://github.com/arminbiere/aiger) tool
 
 ## Equivalence checking and minimization
 If you have encodings of two functions (with same input and output sizes), 
