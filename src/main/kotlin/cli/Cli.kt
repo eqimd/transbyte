@@ -34,7 +34,7 @@ class Cli : CliktCommand(name = "transbyte") {
     val methodStartName: String? by option(
         names = arrayOf("--method"),
         help = "Name of the method to start translation with. " +
-            "If class has only one method, this method will be taken automatically"
+            "If class has only one method, this method will be taken"
     )
 
     val arraySizes: List<Int> by option(
