@@ -3,7 +3,7 @@ cd $(dirname -- $(readlink -f $0)) &&
 rm -rf debug &&
 mkdir debug &&
 cd ../../ &&
-./gradlew run --args="-c tests/examples/Sorts/Sorts.class -sc Sorts -m insertionSortBytes:([B)[B --output tests/scripts/debug/ins_5_8.aag --array-sizes 5" &&
+./gradlew run --args="tests/examples/Sorts/Sorts.class --start-class Sorts --method insertionSortBytes --output tests/scripts/debug/ins_5_8.aag --array-sizes 5" &&
 cd tests/scripts/ &&
 ./aigtoaig debug/ins_5_8.aag debug/ins_5_8.aig &&
 cp ../examples/Sorts/sel_transalg_5_8.aig debug/ &&

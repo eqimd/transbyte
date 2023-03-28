@@ -4,8 +4,10 @@ import bit_scheduler.BitScheduler
 import bit_scheduler.BitSchedulerImpl
 import boolean_logic.BooleanVariable
 import boolean_logic.Equality
+import constants.Constants
 import constants.GlobalSettings
 import extension.bitsSize
+import extension.fullDescription
 import mu.KotlinLogging
 import org.apache.bcel.classfile.JavaClass
 import org.apache.bcel.generic.ArrayType
@@ -22,6 +24,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
 
     private val bitScheduler: BitScheduler = BitSchedulerImpl(1)
     private val primitiveConstants = HashMap<Number, VariableSat.Primitive>()
+
     init {
         GlobalSettings.setupSettings(bitScheduler, primitiveConstants, arraySizes)
 
@@ -32,12 +35,43 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
 
     override fun translate(
         className: String,
-        methodDescription: String,
+        methodDescription: String?,
         vararg args: VariableSat
     ): EncodingCircuit {
-        logger.debug("Translating method '$methodDescription' of class '$className'")
-        val classSat = classSatMap[className]!!
-        val methodSat = classSat.getMethodByDescription(methodDescription)
+        val classSat = classSatMap[className]
+            ?: throw RuntimeException("Can't find class '$className'")
+
+        val methodDescFinal = if (methodDescription == null) {
+            // != 2 because every class has init method
+            if (classSat.clazz.methods.size != 2) {
+                throw RuntimeException(
+                    "Class '$className' has more than 1 method, and the method for translation " +
+                        "is not specifed"
+                )
+            }
+
+            if (classSat.clazz.methods[0].name != Constants.INIT_METHOD_NAME) {
+                classSat.clazz.methods[0].fullDescription
+            } else {
+                classSat.clazz.methods[1].fullDescription
+            }
+        } else {
+            val methodsWithSameName = classSat.clazz.methods.filter { it.name == methodDescription }.toList()
+            if (methodsWithSameName.size > 1) {
+                throw RuntimeException(
+                    "Class '$className' has more than one method with name 'methodDescription'. " +
+                        "You need to specify full method signature, for example 'sum:(II)I'"
+                )
+            } else if (methodsWithSameName.size == 1) {
+                methodsWithSameName.first().fullDescription
+            } else {
+                methodDescription
+            }
+        }
+
+        logger.debug("Translating method '$methodDescFinal' of class '$className'")
+
+        val methodSat = classSat.getMethodByDescription(methodDescFinal)
             ?: throw RuntimeException("Class '$className' has no method '$methodDescription'")
 
         val circuitSystem = emptyList<Equality>().toMutableList()
@@ -51,8 +85,15 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                 when (val type = methodSat.methodGen.argumentTypes[i]) {
                     is ArrayType -> {
                         // TODO parse nested arrays
+                        val arraySize: Int
+                        try {
+                            arraySize = arraySizesIter.next()
+                        } catch (_: Exception) {
+                            throw RuntimeException("Not enough array size parameters")
+                        }
+
                         val (arg, _) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
-                            size = arraySizesIter.next(),
+                            size = arraySize,
                             primitiveSize = type.basicType.bitsSize,
                         )
 
@@ -78,7 +119,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                         arg
                     }
                     else -> {
-                        logger.error { "ReferenceType is not supported for translation yet" }
+                        logger.error("ReferenceType is not supported for translation yet")
                         TODO("ReferenceType is not supported for translation yet")
                     }
                 }

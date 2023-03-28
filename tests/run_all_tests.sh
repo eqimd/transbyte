@@ -9,4 +9,5 @@ cd scripts &&
 ./test_selection_sort.sh &&
 ./test_insertion_sort.sh &&
 ./test_bubble_sort.sh &&
-./test_pancake_sort.sh
+./test_pancake_sort.sh &&
+rm -rf debug
