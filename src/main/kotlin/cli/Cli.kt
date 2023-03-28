@@ -15,11 +15,15 @@ import org.apache.bcel.classfile.ClassParser
 import org.slf4j.simple.SimpleLogger
 import translator.BytecodeTranslatorImpl
 import java.io.PrintStream
+import javax.tools.DiagnosticCollector
+import javax.tools.JavaFileObject
+import javax.tools.ToolProvider
 
 class Cli : CliktCommand() {
     val classFilePaths: List<String> by argument(
-        name = "classes",
-        help = "All classes for the translator"
+        name = "files",
+        help = "All classes for the translator. " +
+            "You can also pass .java files, and transbyte will try to compile them using system Java compiler"
     ).multiple(required = true)
 
     val startClass: String by option(
@@ -56,8 +60,43 @@ class Cli : CliktCommand() {
         val logger = KotlinLogging.logger {}
 
         try {
-            val classes = List(classFilePaths.size) { i ->
-                val classParser = ClassParser(classFilePaths[i])
+            val classFiles = classFilePaths.filter { s -> !s.endsWith(".java") }.toMutableList()
+            val javaFiles = classFilePaths.filter { s -> s.endsWith(".java") }
+
+            if (javaFiles.isNotEmpty()) {
+                val compiler = ToolProvider.getSystemJavaCompiler()
+                if (compiler == null) {
+                    logger.debug("Can't find system Java compiler!")
+                    throw RuntimeException("Can't compile .java files: could not find system Java compiler")
+                }
+
+                val diagnostics = DiagnosticCollector<JavaFileObject>()
+                val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
+                val compilationUnits = fileManager.getJavaFileObjectsFromStrings(javaFiles)
+
+                val task = compiler.getTask(null, fileManager, diagnostics, null, null, compilationUnits)
+                val isSuccess = task.call()
+                if (!isSuccess) {
+                    val errorMsg = StringBuilder()
+
+                    errorMsg.append("Can't compile .java files:\n")
+                    for (d in diagnostics.diagnostics) {
+                        errorMsg.append(d.toString())
+                        errorMsg.append("\n")
+                    }
+
+                    throw RuntimeException(errorMsg.toString())
+                }
+
+                javaFiles.forEach {
+                    classFiles.add(
+                        it.dropLast(5) + ".class"
+                    )
+                }
+            }
+
+            val classes = classFiles.map {
+                val classParser = ClassParser(it)
                 classParser.parse()
             }
 
