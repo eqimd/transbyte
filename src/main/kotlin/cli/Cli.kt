@@ -19,7 +19,7 @@ import javax.tools.DiagnosticCollector
 import javax.tools.JavaFileObject
 import javax.tools.ToolProvider
 
-class Cli : CliktCommand() {
+class Cli : CliktCommand(name = "transbyte") {
     val classFilePaths: List<String> by argument(
         name = "files",
         help = "All classes for the translator. " +
