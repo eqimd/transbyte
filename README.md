@@ -3,7 +3,7 @@
 **Note**: The project is still WIP, so not all of your functions can be correctly encoded, or encoded at all.
 
 **transbyte** is a tool for encoding JVM Bytecode to CIRCUIT-SAT.
-It takes `.class` file with some parameters and gives you an encoding in
+It takes `.java` and `.class` files with some parameters and gives you an encoding in
 ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger) format.
 
 ## Usage
