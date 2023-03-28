@@ -10,17 +10,21 @@ ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger) format.
 
 Use `.jar` standalone file from releases (or build one by yourself) with the next command to get usage info
 ```bash
-> java -jar transbyte.jar
-Value for option --classes should be always provided in command line.
-Usage: transbyte options_list
-Options: 
-    --debug, -d [false] -> Turn on debug info 
-    --classes, -c -> All paths to classes for the translator (always required) { String }
-    --start-class, -sc -> Class name where to find start method (always required) { String }
-    --method, -m [main] -> Name of the method to start translation with { String }
-    --output, -o -> Filename for output { String }
-    --array-sizes, -asz -> Array sizes for input in method { Int }
-    --help, -h -> Usage info 
+> java -jar transbyte.jar --help
+Usage: transbyte [OPTIONS] files...
+
+Options:
+  --start-class TEXT  Class name where to find start method
+  --method TEXT       Name of the method to start translation with. If class
+                      has only one method, this method will be taken
+  --array-sizes INT   Array sizes for input method, separated by ','
+  -o, --output TEXT   Filename for output
+  -d, --debug         Turn on debug info
+  -h, --help          Show this message and exit
+
+Arguments:
+  files  All classes for the translator. You can also pass .java files, and
+         transbyte will try to compile them using system Java compiler
 ```
 
 For example, if you have the next function
@@ -33,10 +37,13 @@ class Sum {
 ```
 in your `Sum.class` file, you can pass it to `transbyte` using the next command
 ```bash
-> java -jar transbyte.jar -c Sum.class -sc Sum -m sum:(II)I
+> java -jar transbyte.jar Sum.class --start-class Sum --method sum
 ```
 
-If you have an array as input in your function, you should use parameter `--array-sizes` (or `-asz`)
+You can also pass `Sum.java` file directly, and `transbyte`
+will try to compile it using system Java compiler.
+
+If you have an array as input in your function, you should use parameter `--array-sizes`
 to pass input array size (otherwise, `transbyte` will give an error).
 ```java
 class BubbleSort {
@@ -56,10 +63,10 @@ class BubbleSort {
 }
 ```
 ```bash
-> java -jar transbyte.jar -c BubbleSort.class -sc BubbleSort -m bubbleSort:([I)[I -asz 5
+> java -jar transbyte.jar BubbleSort.java --start-class BubbleSort --method bubbleSort --array-sizes 5
 ```
 
-Multiple array sizes can be passed using multiple `-asz` parameters (in the appropriate order)
+Multiple array sizes can be passed by separating sizes with `,` (in the appropriate order)
 ```java
 class SumLength {
     public static int sumLength(int[] a, int[] b) {
@@ -68,14 +75,14 @@ class SumLength {
 }
 ```
 ```bash
-> java -jar transbyte.jar -c SumLength.class -sc SumLength -m sumLength:([I[I)I -asz 5 -asz 10
+> java -jar transbyte.jar SumLength.java --start-class SumLength --method sumLength --array-sizes 5,10
 ```
 
 ## Encoding
 You can encode your function by following a few steps.
 
-1. Suppose you have a `C.java` file with class `C` inside. Compile it with `javac`. Now you have a class file `C.class`
-2. Pass it to `transbyte` with the necessary parameters. Now you have encoding in `.aag` (ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger)) format
+1. Suppose you have a `C.java` file with class `C` inside. Compile it with `javac`, or pass the file directly to `transbyte`.
+2. Now you have encoding in `.aag` (ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger)) format
    * You can convert it to binary `.aig` format (which is used in various tools) using [aigtoaig](https://github.com/arminbiere/aiger) tool
 
 ## Equivalence checking and minimization

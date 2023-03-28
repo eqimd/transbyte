@@ -2,7 +2,7 @@ cd $(dirname -- $(readlink -f $0)) &&
 rm -rf debug &&
 mkdir debug &&
 cd ../../ &&
-./gradlew run --args="-c tests/examples/A5_1/A5_1.class -sc A5_1 -m generate:([Z[Z[Z)[Z --output tests/scripts/debug/a51_java.aag --array-sizes 19 --array-sizes 22 --array-sizes 23" &&
+./gradlew run --args="tests/examples/A5_1/A5_1.class --start-class A5_1 --method generate --output tests/scripts/debug/a51_java.aag --array-sizes 19,22,23" &&
 cd tests/scripts/ &&
 ./aigtoaig debug/a51_java.aag debug/a51_java.aig &&
 cp ../examples/A5_1/a51_reference_transalg.aig debug/ &&

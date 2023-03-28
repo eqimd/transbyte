@@ -17,4 +17,6 @@ object Constants {
     const val LOG_LEVEL_DEBUG = "debug"
 
     const val PROGRAM_NAME = "transbyte"
+
+    const val INIT_METHOD_NAME = "<init>"
 }

@@ -19,7 +19,7 @@ dependencies {
     implementation("io.github.microutils:kotlin-logging-jvm:3.0.4")
     implementation("org.slf4j:slf4j-api:2.0.6")
     implementation("org.slf4j:slf4j-simple:2.0.6")
-    implementation("org.jetbrains.kotlinx:kotlinx-cli:0.3.5")
+    implementation("com.github.ajalt.clikt:clikt:3.5.2")
 }
 
 tasks.test {
@@ -27,7 +27,7 @@ tasks.test {
 }
 
 tasks.withType<KotlinCompile> {
-    kotlinOptions.jvmTarget = "11"
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 tasks {

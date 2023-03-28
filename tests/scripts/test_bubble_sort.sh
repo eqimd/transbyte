@@ -2,7 +2,7 @@ cd $(dirname -- $(readlink -f $0)) &&
 rm -rf debug &&
 mkdir debug &&
 cd ../../ &&
-./gradlew run --args="-c tests/examples/Sorts/Sorts.class -sc Sorts -m bubbleSortBytes:([B)[B --output tests/scripts/debug/bub_5_8.aag --array-sizes 5" &&
+./gradlew run --args="tests/examples/Sorts/Sorts.class --start-class Sorts --method bubbleSortBytes --output tests/scripts/debug/bub_5_8.aag --array-sizes 5" &&
 cd tests/scripts/ &&
 ./aigtoaig debug/bub_5_8.aag debug/bub_5_8.aig &&
 cp ../examples/Sorts/bub_transalg_5_8.aig debug/ &&
