@@ -1,7 +1,5 @@
 cd $(dirname -- $(readlink -f $0)) &&
-python3 -m pip install toposort &&
 cd scripts &&
-chmod +x aag2cnf.py &&
 chmod +x check_encodings.py &&
 chmod +x check_operations.py &&
 chmod +x test_sum.sh &&

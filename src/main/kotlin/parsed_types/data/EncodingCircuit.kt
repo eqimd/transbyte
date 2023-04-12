@@ -10,7 +10,7 @@ data class EncodingCircuit(
     val output: List<BooleanVariable.Bit>?,
     val system: BooleanSystem
 ) {
-    fun saveInAigerFormat(printStream: PrintStream = System.out) {
+    fun saveInAag(printStream: PrintStream = System.out) {
         val maximumVariableIndex = system.maxBy { it.bit.bitNumber }.bit
 
         val numberOfInputs = input.size
@@ -62,6 +62,74 @@ data class EncodingCircuit(
                 }
             }
             printStream.println("$aigBit $firstBit $secondBit")
+        }
+    }
+
+    fun saveInDimacs(printStream: PrintStream = System.out) {
+        val maximumVariableIndex = system.maxBy { it.bit.bitNumber }.bit.bitNumber
+        val outSize = output?.size ?: 0
+
+        printStream.println("c Input bits:")
+        printStream.println("c " + input.joinToString(separator = " ") { it.bitNumber.toString() })
+        printStream.println("c Output bits:")
+        printStream.println("c " + (output?.joinToString(separator = " ") { (it.bitNumber).toString() + maximumVariableIndex } ?: ""))
+
+        val clauses = emptyList<String>().toMutableList()
+
+        for (eq in system) {
+            when (eq.conjFirst) {
+                is BooleanVariable.Bit -> {
+                    clauses.add("-${eq.bit.bitNumber} ${if (eq.conjFirst.isNegated) "-" else ""}${eq.conjFirst.bitNumber} 0")
+                    when (eq.conjSecond) {
+                        is BooleanVariable.Bit -> {
+                            clauses.add("-${eq.bit.bitNumber} ${if (eq.conjSecond.isNegated) "-" else ""}${eq.conjSecond.bitNumber} 0")
+                            clauses.add(
+                                "${eq.bit.bitNumber} ${if (eq.conjFirst.isNegated) "" else "-"}${eq.conjFirst.bitNumber} " +
+                                    "${if (eq.conjSecond.isNegated) "" else "-"}${eq.conjSecond.bitNumber} 0"
+                            )
+                        }
+                        BooleanVariable.Constant.TRUE -> {
+                            clauses.add("${eq.bit.bitNumber} ${if (eq.conjFirst.isNegated) "" else "-"}${eq.conjFirst.bitNumber} 0")
+                        }
+                        BooleanVariable.Constant.FALSE -> {
+                            clauses.add("-${eq.bit.bitNumber} 0")
+                        }
+                    }
+                }
+                BooleanVariable.Constant.TRUE -> {
+                    when (eq.conjSecond) {
+                        is BooleanVariable.Bit -> {
+                            clauses.add("-${eq.bit.bitNumber} ${if (eq.conjSecond.isNegated) "-" else ""}${eq.conjSecond.bitNumber} 0")
+                            clauses.add("${eq.bit.bitNumber} ${if (eq.conjSecond.isNegated) "" else "-"}${eq.conjSecond.bitNumber} 0")
+                        }
+                        BooleanVariable.Constant.TRUE -> {
+                            clauses.add("${eq.bit.bitNumber} 0")
+                        }
+                        BooleanVariable.Constant.FALSE -> {
+                            clauses.add("-${eq.bit.bitNumber} 0")
+                        }
+                    }
+                }
+                BooleanVariable.Constant.FALSE -> {
+                    clauses.add("-${eq.bit.bitNumber} 0")
+                    if (eq.conjSecond !is BooleanVariable.Constant) {
+                        eq.conjSecond as BooleanVariable.Bit
+                        clauses.add("-${eq.bit.bitNumber} ${if (eq.conjSecond.isNegated) "-" else ""}${eq.conjSecond.bitNumber} 0")
+                    }
+                }
+            }
+        }
+
+        // Add variables so output indexes will be greatest
+        for (i in 1..outSize) {
+            val outBit = output!![i - 1]
+            clauses.add("-${maximumVariableIndex + i} ${if (outBit.isNegated) "-" else ""}${outBit.bitNumber} 0")
+            clauses.add("${maximumVariableIndex + i} ${if (outBit.isNegated) "" else "-"}${output[i - 1].bitNumber} 0")
+        }
+
+        printStream.println("p cnf ${maximumVariableIndex + outSize} ${clauses.size}")
+        for (c in clauses) {
+            printStream.println(c)
         }
     }
 }
