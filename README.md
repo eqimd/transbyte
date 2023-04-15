@@ -4,7 +4,7 @@
 
 **transbyte** is a tool for encoding JVM Bytecode to CIRCUIT-SAT.
 It takes `.java` and `.class` files with some parameters and gives you an encoding in
-ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger) format.
+ascii [AIGER](https://fmv.jku.at/aiger/FORMAT.aiger) or in [DIMACS](https://logic.pdmi.ras.ru/~basolver/dimacs.html) format.
 
 ## Usage
 
@@ -14,13 +14,14 @@ Use `.jar` standalone file from releases (or build one by yourself) with the nex
 Usage: transbyte [OPTIONS] files...
 
 Options:
-  --start-class TEXT  Class name where to find start method
-  --method TEXT       Name of the method to start translation with. If class
-                      has only one method, this method will be taken
-  --array-sizes INT   Array sizes for input method, separated by ','
-  -o, --output TEXT   Filename for output
-  -d, --debug         Turn on debug info
-  -h, --help          Show this message and exit
+  --start-class TEXT      Class name where to find start method
+  --method TEXT           Name of the method to start translation with. If
+                          class has only one method, this method will be taken
+  --array-sizes INT       Array sizes for input method, separated by ','
+  -o, --output TEXT       Filename for output
+  -f, --format [aag|cnf]
+  -d, --debug             Turn on debug info
+  -h, --help              Show this message and exit
 
 Arguments:
   files  All classes for the translator. You can also pass .java files, and
