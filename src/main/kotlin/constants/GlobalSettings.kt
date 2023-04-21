@@ -7,15 +7,9 @@ object GlobalSettings {
     val bitScheduler: BitScheduler
         get() = _bitScheduler
 
-    private lateinit var _arraySizes: List<Int>
-    val arraySizes: List<Int>
-        get() = _arraySizes
-
     fun setupSettings(
         bitScheduler: BitScheduler,
-        arraySizes: List<Int> = emptyList(),
     ) {
         _bitScheduler = bitScheduler
-        _arraySizes = arraySizes
     }
 }

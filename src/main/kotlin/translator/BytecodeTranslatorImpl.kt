@@ -18,14 +18,14 @@ import parsed_types.data.EncodingCircuit
 import parsed_types.data.VariableSat
 import kotlin.RuntimeException
 
-class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = emptyList()) : Translator {
+class BytecodeTranslatorImpl(classes: List<JavaClass>, val arraySizes: List<Int> = emptyList()) : Translator {
     private val classSatMap = HashMap<String, ClassSat>()
     private val logger = KotlinLogging.logger {}
 
     private val bitScheduler: BitScheduler = BitSchedulerImpl(1)
 
     init {
-        GlobalSettings.setupSettings(bitScheduler, arraySizes)
+        GlobalSettings.setupSettings(bitScheduler)
 
         for (clazz in classes) {
             classSatMap[clazz.className] = ClassSat(clazz)
@@ -77,7 +77,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
 
         var inputBits = emptyList<BooleanVariable.Bit>().toMutableList()
 
-        val arraySizesIter = GlobalSettings.arraySizes.iterator()
+        val arraySizesIter = arraySizes.iterator()
 
         val methodSatArgs = if (args.isEmpty()) {
             Array(methodSat.methodGen.argumentTypes.size) { i ->
