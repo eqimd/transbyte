@@ -15,8 +15,9 @@ sealed interface VariableSat {
         val versions: Map<Number, BooleanVariable.Bit> = _versionsMap
 
         companion object {
+            private val primitiveConstants: HashMap<Number, Primitive> = hashMapOf()
+
             fun create(size: Int, constant: Number? = null): Pair<Primitive, BooleanSystem> {
-                val primitiveConstants = GlobalSettings.primitiveConstants
                 if (constant != null && primitiveConstants.containsKey(constant)) {
                     val primitive = Primitive(
                         primitiveConstants[constant]!!.bitsArray.take(size).toTypedArray(),
@@ -67,47 +68,15 @@ sealed interface VariableSat {
         }
     }
 
-    sealed class ArrayReference(val size: Int? = null) : VariableSat {
-        class ArrayOfPrimitives private constructor(size: Int?, val primitiveSize: Int) : ArrayReference(size) {
-            var primitives = HashMap<Int, Primitive>()
+    class ArrayReference<T : VariableSat>(iterable: Iterable<T>) : VariableSat {
+        val array: ArrayList<T>
 
-            companion object {
-                fun create(
-                    size: Int? = null,
-                    primitiveSize: Int,
-                    constant: Number? = null
-                ): Pair<ArrayReference, BooleanSystem> {
-                    val arrayOfPrimitives = ArrayOfPrimitives(size, primitiveSize)
-                    val parseSystem = emptyList<Equality>().toMutableList()
-
-                    if (size != null) {
-                        for (i in 0 until size) {
-                            val (primitive, sys) = Primitive.create(size = primitiveSize, constant = constant)
-                            parseSystem.addAll(sys)
-                            arrayOfPrimitives.primitives[i] = primitive
-                        }
-                    }
-
-                    return Pair(arrayOfPrimitives, parseSystem)
-                }
-            }
-
-            fun copy(): ArrayOfPrimitives {
-                val copyArray = ArrayOfPrimitives(this.size, this.primitiveSize)
-                copyArray.primitives = HashMap(this.primitives)
-
-                return copyArray
-            }
+        init {
+            array = ArrayList(iterable.iterator().asSequence().toList())
         }
 
-        class ArrayOfArrays private constructor(size: Int?) : ArrayReference(size) {
-            // TODO
-            val arrays = HashMap<Int, ArrayReference>()
-        }
-
-        class ArrayOfReferences private constructor(size: Int?) : ArrayReference(size) {
-            // TODO
-            val references = HashMap<Int, ClassSat>()
+        fun copy(): ArrayReference<T> {
+            return ArrayReference(array)
         }
     }
 

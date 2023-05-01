@@ -78,7 +78,7 @@ class MethodSat(
         class SystemWithPrimitive(val system: BooleanSystem, val primitive: VariableSat.Primitive) :
             MethodParseReturnValue
 
-        class SystemWithArray(val system: BooleanSystem, val arrayReference: VariableSat.ArrayReference) :
+        class SystemWithArray(val system: BooleanSystem, val arrayReference: VariableSat.ArrayReference<*>) :
             MethodParseReturnValue
 
         class SystemWithReference(val system: BooleanSystem, val reference: VariableSat.ClassReference)
@@ -301,7 +301,7 @@ class MethodSat(
 
                     is ASTORE -> {
                         when (val last = stack.removeLast()) {
-                            is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
+                            is VariableSat.ArrayReference<*>, is VariableSat.ClassReference -> {
                                 locals[instruction.index] = last
                             }
 
@@ -314,11 +314,11 @@ class MethodSat(
                     is BASTORE, is IASTORE -> {
                         val value = stack.removeLast() as VariableSat.Primitive
                         val index = stack.removeLast() as VariableSat.Primitive
-                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
+                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference<VariableSat.Primitive>
 
                         // TODO right now it works only when index constant is known or versions set is not empty
                         if (index.constant != null) {
-                            arrayRef.primitives[index.constant.toInt()] = value
+                            arrayRef.array[index.constant.toInt()] = value
                         } else if (index.versions.isNotEmpty()) {
                             logger.debug("Parsing versions for array indexing")
                             for (v in index.versions) {
@@ -326,11 +326,11 @@ class MethodSat(
                                 val (newPrim, sys) = OperationParser.parseNewPrimitiveWithCondition(
                                     v.value,
                                     value,
-                                    arrayRef.primitives[v.key.toInt()]!!
+                                    arrayRef.array[v.key.toInt()] as VariableSat.Primitive
                                 )
                                 system.addAll(sys)
 
-                                arrayRef.primitives[v.key.toInt()] = newPrim
+                                arrayRef.array[v.key.toInt()] = newPrim
                             }
                         } else {
                             throw ParseInstructionException("Can't parse $instruction: index constant is null and there is no versions")
@@ -339,7 +339,7 @@ class MethodSat(
 
                     is ALOAD -> {
                         when (locals[instruction.index]) {
-                            is VariableSat.ArrayReference, is VariableSat.ClassReference -> {
+                            is VariableSat.ArrayReference<*>, is VariableSat.ClassReference -> {
                                 stack.addLast(locals[instruction.index]!!)
                             }
 
@@ -372,15 +372,16 @@ class MethodSat(
                     is BALOAD, is IALOAD -> {
                         // TODO right now it works only when index is known or versions set is not empty
                         val index = stack.removeLast() as VariableSat.Primitive
-                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
+                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference<VariableSat.Primitive>
                         logger.debug("Index constant: ${index.constant}")
 
                         if (index.constant != null) {
                             stack.addLast(
-                                arrayRef.primitives[index.constant] as VariableSat
+                                arrayRef.array[index.constant.toInt()]
                             )
                         } else if (index.versions.isNotEmpty()) {
-                            val newPrim = VariableSat.Primitive.create(arrayRef.primitiveSize).first
+                            val primSize = arrayRef.array.first().bitsArray.size
+                            val newPrim = VariableSat.Primitive.create(primSize).first
 
                             for (i in 0 until newPrim.bitsArray.size) {
                                 logger.debug("Versions: ${index.versions.map { it.key }}")
@@ -391,7 +392,7 @@ class MethodSat(
                                     system.add(
                                         Equality(
                                             conjBit,
-                                            arrayRef.primitives[it.key]!!.bitsArray[i],
+                                            arrayRef.array[it.key.toInt()].bitsArray[i],
                                             it.value
                                         )
                                     )
@@ -422,20 +423,26 @@ class MethodSat(
                     is NEWARRAY -> {
                         val size = stack.removeLast() as VariableSat.Primitive
                         val arrayType = instruction.type as ArrayType
-                        val (arrayPrimitives, parseSystem) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
-                            size = size.constant?.toInt(),
-                            primitiveSize = arrayType.basicType.bitsSize,
-                            constant = 0
-                        )
+
+                        val list = List(size.constant!!.toInt()) { _ ->
+                            VariableSat.Primitive.create(
+                                size = arrayType.basicType.bitsSize,
+                                constant = 0
+                            )
+                        }
+
+                        val arrayPrims = VariableSat.ArrayReference(list.map { it.first })
+                        val parseSystem = list.map { it.second }.flatten()
+
                         system.addAll(parseSystem)
 
-                        stack.addLast(arrayPrimitives)
+                        stack.addLast(arrayPrims)
                     }
 
                     is ARRAYLENGTH -> {
                         // TODO now it works only with array of primitives
-                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference.ArrayOfPrimitives
-                        val (primSize, primSys) = VariableSat.Primitive.create(size = Int.SIZE_BITS, constant = arrayRef.size)
+                        val arrayRef = stack.removeLast() as VariableSat.ArrayReference<*>
+                        val (primSize, primSys) = VariableSat.Primitive.create(size = Int.SIZE_BITS, constant = arrayRef.array.size)
                         system.addAll(primSys)
 
                         stack.addLast(primSize)
@@ -560,7 +567,7 @@ class MethodSat(
 
                     is ARETURN -> {
                         if (methodGen.returnType is ArrayType) {
-                            val stackLast = stack.removeLast() as VariableSat.ArrayReference
+                            val stackLast = stack.removeLast() as VariableSat.ArrayReference<*>
                             return MethodParseReturnValue.SystemWithArray(
                                 system,
                                 stackLast
@@ -628,7 +635,7 @@ class MethodSat(
             for ((index, arg) in methodGen.argumentTypes.withIndex()) {
                 when (arg) {
                     is ArrayType -> {
-                        locals[index] = args[index] as VariableSat.ArrayReference.ArrayOfPrimitives
+                        locals[index] = args[index] as VariableSat.ArrayReference<VariableSat.Primitive>
                     }
 
                     is ReferenceType -> {
@@ -646,8 +653,8 @@ class MethodSat(
             val newLocals = HashMap(locals)
 
             for (k in locals.keys) {
-                if (locals[k] is VariableSat.ArrayReference.ArrayOfPrimitives) {
-                    val castedLocal = newLocals[k] as VariableSat.ArrayReference.ArrayOfPrimitives
+                if (locals[k] is VariableSat.ArrayReference<*>) {
+                    val castedLocal = newLocals[k] as VariableSat.ArrayReference<*>
                     val copyLocal = castedLocal.copy()
                     newLocals[k] = copyLocal
                 }
@@ -697,15 +704,17 @@ class MethodSat(
                         system.addAll(condLocalsSystem)
                     }
 
-                    is VariableSat.ArrayReference.ArrayOfPrimitives -> {
-                        val curLocal = locals[key] as VariableSat.ArrayReference.ArrayOfPrimitives
-                        val newLocal = condLocal.copy()
+                    // TODO now it works only with primitives
+                    is VariableSat.ArrayReference<*> -> {
+                        val cl = condLocal as VariableSat.ArrayReference<VariableSat.Primitive>
+                        val curLocal = locals[key] as VariableSat.ArrayReference<VariableSat.Primitive>
+                        val newLocal = condLocal.copy() as VariableSat.ArrayReference<VariableSat.Primitive>
 
                         newLocals[key] = newLocal
 
-                        for (k in condLocal.primitives.keys) {
-                            val condLocalPrim = condLocal.primitives[k]!!
-                            val curLocalPrim = curLocal.primitives[k]!!
+                        for (k in cl.array.indices) {
+                            val condLocalPrim = condLocal.array[k]
+                            val curLocalPrim = curLocal.array[k]
 
                             if (condLocalPrim.bitsArray.first() != curLocalPrim.bitsArray.first()) {
                                 val condTrueLocal: VariableSat.Primitive
@@ -725,7 +734,7 @@ class MethodSat(
                                     condFalseLocal,
                                 )
 
-                                newLocal.primitives[k] = newPrim
+                                newLocal.array[k] = newPrim
 
                                 system.addAll(condLocalsSystem)
                             }

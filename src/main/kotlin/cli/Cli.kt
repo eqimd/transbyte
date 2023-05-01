@@ -8,11 +8,13 @@ import com.github.ajalt.clikt.parameters.options.flag
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.split
+import com.github.ajalt.clikt.parameters.types.choice
 import com.github.ajalt.clikt.parameters.types.int
 import constants.Constants
 import mu.KotlinLogging
 import org.apache.bcel.classfile.ClassParser
 import org.slf4j.simple.SimpleLogger
+import parsed_types.data.SaveFormat
 import translator.BytecodeTranslatorImpl
 import java.io.PrintStream
 import javax.tools.DiagnosticCollector
@@ -46,6 +48,13 @@ class Cli : CliktCommand(name = "transbyte") {
         names = arrayOf("-o", "--output"),
         help = "Filename for output"
     )
+
+    val saveFormat: SaveFormat by option(
+        names = arrayOf("-f", "--format")
+    ).choice(
+        SaveFormat.AAG.format to SaveFormat.AAG,
+        SaveFormat.CNF.format to SaveFormat.CNF
+    ).default(SaveFormat.AAG)
 
     val isDebug: Boolean by option(
         names = arrayOf("-d", "--debug"),
@@ -109,7 +118,14 @@ class Cli : CliktCommand(name = "transbyte") {
             }
 
             val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)
-            circuit.saveInAigerFormat(outStream)
+            when (saveFormat) {
+                SaveFormat.CNF -> {
+                    circuit.saveInDimacs(outStream)
+                }
+                SaveFormat.AAG -> {
+                    circuit.saveInAag(outStream)
+                }
+            }
         } catch (e: Exception) {
             logger.debug(e.message)
             logger.debug("Stacktrace:")

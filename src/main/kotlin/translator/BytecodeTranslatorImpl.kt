@@ -18,15 +18,14 @@ import parsed_types.data.EncodingCircuit
 import parsed_types.data.VariableSat
 import kotlin.RuntimeException
 
-class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = emptyList()) : Translator {
+class BytecodeTranslatorImpl(classes: List<JavaClass>, val arraySizes: List<Int> = emptyList()) : Translator {
     private val classSatMap = HashMap<String, ClassSat>()
     private val logger = KotlinLogging.logger {}
 
     private val bitScheduler: BitScheduler = BitSchedulerImpl(1)
-    private val primitiveConstants = HashMap<Number, VariableSat.Primitive>()
 
     init {
-        GlobalSettings.setupSettings(bitScheduler, primitiveConstants, arraySizes)
+        GlobalSettings.setupSettings(bitScheduler)
 
         for (clazz in classes) {
             classSatMap[clazz.className] = ClassSat(clazz)
@@ -78,7 +77,7 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
 
         var inputBits = emptyList<BooleanVariable.Bit>().toMutableList()
 
-        val arraySizesIter = GlobalSettings.arraySizes.iterator()
+        val arraySizesIter = arraySizes.iterator()
 
         val methodSatArgs = if (args.isEmpty()) {
             Array(methodSat.methodGen.argumentTypes.size) { i ->
@@ -92,15 +91,17 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                             throw RuntimeException("Not enough array size parameters")
                         }
 
-                        val (arg, _) = VariableSat.ArrayReference.ArrayOfPrimitives.create(
-                            size = arraySize,
-                            primitiveSize = type.basicType.bitsSize,
-                        )
+                        val prims = List(arraySize) { _ ->
+                            VariableSat.Primitive.create(
+                                size = type.basicType.bitsSize,
+                            )
+                        }.map { it.first }
+
+                        val arg = VariableSat.ArrayReference(prims)
 
                         inputBits.addAll(
-                            (arg as VariableSat.ArrayReference.ArrayOfPrimitives)
-                                .primitives
-                                .values
+                            arg
+                                .array
                                 .map { it.bitsArray.toList() }
                                 .flatten()
                         )
@@ -138,11 +139,12 @@ class BytecodeTranslatorImpl(classes: List<JavaClass>, arraySizes: List<Int> = e
                 EncodingCircuit(inputBits, methodRetVal.primitive.bitsArray.toList(), circuitSystem)
             }
             is MethodSat.MethodParseReturnValue.SystemWithArray -> {
+                // TODO now it works only with primitives
+
                 circuitSystem.addAll(methodRetVal.system)
                 val outputBits =
-                    (methodRetVal.arrayReference as VariableSat.ArrayReference.ArrayOfPrimitives)
-                        .primitives
-                        .values
+                    (methodRetVal.arrayReference as VariableSat.ArrayReference<VariableSat.Primitive>)
+                        .array
                         .map { it.bitsArray.toList() }
                         .flatten()
 

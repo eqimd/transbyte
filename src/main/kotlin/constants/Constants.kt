@@ -19,4 +19,7 @@ object Constants {
     const val PROGRAM_NAME = "transbyte"
 
     const val INIT_METHOD_NAME = "<init>"
+
+    const val FORMAT_AAG = "aag"
+    const val FORMAT_CNF = "cnf"
 }
