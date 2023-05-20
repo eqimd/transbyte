@@ -28,10 +28,11 @@ class Cli : CliktCommand(name = "transbyte") {
             "You can also pass .java files, and transbyte will try to compile them using system Java compiler"
     ).multiple(required = true)
 
-    val startClass: String by option(
+    val startClass: String? by option(
         names = arrayOf("--start-class"),
-        help = "Class name where to find start method"
-    ).required()
+        help = "Class name where to find start method. " +
+            "If only one class provided, this class will be taken"
+    )
 
     val methodStartName: String? by option(
         names = arrayOf("--method"),
@@ -109,9 +110,17 @@ class Cli : CliktCommand(name = "transbyte") {
                 classParser.parse()
             }
 
+            val finalStartClass = if (classes.size == 1) {
+                classes.first().className
+            } else if (startClass != null) {
+                startClass!!
+            } else {
+                throw RuntimeException("Provided more than one class and to start class specified")
+            }
+
             val translator = BytecodeTranslatorImpl(classes, arraySizes)
 
-            val circuit = translator.translate(startClass, methodStartName)
+            val circuit = translator.translate(finalStartClass, methodStartName)
 
             for (eq in circuit.system) {
                 logger.debug(eq.toString())
