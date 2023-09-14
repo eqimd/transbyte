@@ -28,10 +28,11 @@ class Cli : CliktCommand(name = "transbyte") {
             "You can also pass .java files, and transbyte will try to compile them using system Java compiler"
     ).multiple(required = true)
 
-    val startClass: String by option(
+    val startClass: String? by option(
         names = arrayOf("--start-class"),
-        help = "Class name where to find start method"
-    ).required()
+        help = "Class name where to find start method. " +
+            "If only one class provided, this class will be taken"
+    )
 
     val methodStartName: String? by option(
         names = arrayOf("--method"),
@@ -68,72 +69,70 @@ class Cli : CliktCommand(name = "transbyte") {
 
         val logger = KotlinLogging.logger {}
 
-        try {
-            val classFiles = classFilePaths.filter { s -> !s.endsWith(".java") }.toMutableList()
-            val javaFiles = classFilePaths.filter { s -> s.endsWith(".java") }
+        val classFiles = classFilePaths.filter { s -> !s.endsWith(".java") }.toMutableList()
+        val javaFiles = classFilePaths.filter { s -> s.endsWith(".java") }
 
-            if (javaFiles.isNotEmpty()) {
-                val compiler = ToolProvider.getSystemJavaCompiler()
-                if (compiler == null) {
-                    logger.debug("Can't find system Java compiler!")
-                    throw RuntimeException("Can't compile .java files: could not find system Java compiler")
-                }
-
-                val diagnostics = DiagnosticCollector<JavaFileObject>()
-                val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
-                val compilationUnits = fileManager.getJavaFileObjectsFromStrings(javaFiles)
-
-                val task = compiler.getTask(null, fileManager, diagnostics, null, null, compilationUnits)
-                val isSuccess = task.call()
-                if (!isSuccess) {
-                    val errorMsg = StringBuilder()
-
-                    errorMsg.append("Can't compile .java files:\n")
-                    for (d in diagnostics.diagnostics) {
-                        errorMsg.append(d.toString())
-                        errorMsg.append("\n")
-                    }
-
-                    throw RuntimeException(errorMsg.toString())
-                }
-
-                javaFiles.forEach {
-                    classFiles.add(
-                        it.dropLast(5) + ".class"
-                    )
-                }
+        if (javaFiles.isNotEmpty()) {
+            val compiler = ToolProvider.getSystemJavaCompiler()
+            if (compiler == null) {
+                logger.debug("Can't find system Java compiler!")
+                throw RuntimeException("Can't compile .java files: could not find system Java compiler")
             }
 
-            val classes = classFiles.map {
-                val classParser = ClassParser(it)
-                classParser.parse()
-            }
+            val diagnostics = DiagnosticCollector<JavaFileObject>()
+            val fileManager = compiler.getStandardFileManager(diagnostics, null, null)
+            val compilationUnits = fileManager.getJavaFileObjectsFromStrings(javaFiles)
 
-            val translator = BytecodeTranslatorImpl(classes, arraySizes)
+            val task = compiler.getTask(null, fileManager, diagnostics, null, null, compilationUnits)
+            val isSuccess = task.call()
+            if (!isSuccess) {
+                val errorMsg = StringBuilder()
 
-            val circuit = translator.translate(startClass, methodStartName)
-
-            for (eq in circuit.system) {
-                logger.debug(eq.toString())
-            }
-
-            val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)
-            when (saveFormat) {
-                SaveFormat.CNF -> {
-                    circuit.saveInDimacs(outStream)
+                errorMsg.append("Can't compile .java files:\n")
+                for (d in diagnostics.diagnostics) {
+                    errorMsg.append(d.toString())
+                    errorMsg.append("\n")
                 }
-                SaveFormat.AAG -> {
-                    circuit.saveInAag(outStream)
-                }
-            }
-        } catch (e: Exception) {
-            logger.debug(e.message)
-            logger.debug("Stacktrace:")
-            e.stackTrace.forEach {
-                logger.debug("\t$it")
+
+                throw RuntimeException(errorMsg.toString())
             }
 
-            System.err.println(e.message)
+            javaFiles.forEach {
+                classFiles.add(
+                    it.dropLast(5) + ".class"
+                )
+            }
+        }
+
+        val classes = classFiles.map {
+            val classParser = ClassParser(it)
+            classParser.parse()
+        }
+
+        val finalStartClass = if (classes.size == 1) {
+            classes.first().className
+        } else if (startClass != null) {
+            startClass!!
+        } else {
+            throw RuntimeException("Provided more than one class and to start class specified")
+        }
+
+        val translator = BytecodeTranslatorImpl(classes, arraySizes)
+
+        val circuit = translator.translate(finalStartClass, methodStartName)
+
+        for (eq in circuit.system) {
+            logger.debug(eq.toString())
+        }
+
+        val outStream = if (saveFilename == null) System.out else PrintStream(saveFilename!!)
+        when (saveFormat) {
+            SaveFormat.CNF -> {
+                circuit.saveInDimacs(outStream)
+            }
+            SaveFormat.AAG -> {
+                circuit.saveInAag(outStream)
+            }
         }
     }
 }
